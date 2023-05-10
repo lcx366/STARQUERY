@@ -27,6 +27,8 @@ setup(
         'astropy>=4.3.1',
         'pandas',
         'colorama',
-        'healpy'
+        'healpy',
+        'cartopy',
+        'wget'
         ],
 )
