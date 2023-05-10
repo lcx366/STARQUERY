@@ -1,16 +1,16 @@
 from setuptools import setup,find_packages 
 
 setup(
-    name='sourceextractor',
+    name='starcatalogquery',
     version='0.1.0',
-    description='A package to handle the SLR(Satellite Laser Ranging) data',
+    description='A package to establish an offline star catalog query database',
     author='Chunxiao Li',
     author_email='lcx366@126.com',
-    url='https://github.com/lcx366/SOURCEextractor',
+    url='https://github.com/lcx366/STARQUERY',
     license='MIT',
     long_description_content_type='text/markdown',
     long_description=open('README.md', 'rb').read().decode('utf-8'),
-    keywords = ['SLR','CPF'],
+    keywords = ['Star Catalog'],
     python_requires = '>=3.8',
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -18,6 +18,7 @@ setup(
         'Intended Audience :: Science/Research',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
         'License :: OSI Approved :: MIT License',
         ],
     packages = find_packages(),
