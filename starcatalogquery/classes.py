@@ -244,7 +244,7 @@ class StarCatalogRaw(object):
                 # units: ra->hourangle, dec->deg, pmra->mas/a, pmdec->mas/a, epoch->2000.0 
                 df_reduced = df.loc[:,['ra','dec','pmra','pmdec','mag']]
                 df_reduced['epoch'] = '2000.0'
-                df_reduced['ra'] = (df_reduced['ra']*15).round(6) # Convert hourangle to deg
+                df_reduced['ra'] = (df_reduced['ra'].astype(float)*15).round(6) # Convert hourangle to deg
                 df_reduced.to_csv(tile_file.replace('raw','reduced'),index=False)
 
                 j += 1
@@ -260,8 +260,8 @@ class StarCatalogRaw(object):
                 columns_dict = {'RApm':'pmra', 'Decpm':'pmdec', 'Epoch':'epoch'}
                 df_reduced.rename(columns=columns_dict, inplace=True)
                 # Convert to standard proper motion in mas/a
-                df_reduced['pmra'] = (df_reduced['pmra']*1e4).round(2) 
-                df_reduced['pmdec'] = (df_reduced['pmdec']*1e4).round(2)
+                df_reduced['pmra'] = (df_reduced['pmra'].astype(float)*1e4).round(2) 
+                df_reduced['pmdec'] = (df_reduced['pmdec'].astype(float)*1e4).round(2)
                 df_reduced.to_csv(tile_file.replace('raw','reduced'),index=False)
 
                 j += 1
@@ -793,7 +793,7 @@ class StarCatalogSimplified(object):
 
     def __repr__(self):
     
-        return 'instance of class StarCatalogSimplified'        
+        return 'Instance of class StarCatalogSimplified'        
 
     def load(sc_name,tile_size,mag_cutoff,epoch,dir_from=None):
         """
