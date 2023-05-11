@@ -188,7 +188,7 @@ A h5-formatted star catalog file `outh5`is generated, which records the center p
 ```python
 >>> from starcatalogquery import StarCatalog
 >>> infile_h5 = 'starcatalogs/indices/hygv3/fov20_mag8_mcp40_2023.0.h5'
->>> fp_radecs,stars_xy,stars_invariants,stars_asterisms = read_h5_indices(infile_h5)
+>>> fp_radecs,stars_xy,stars_invariants,stars_asterisms = StarCatalog.read_h5_indices(infile_h5)
 ```
 
 ### Load the local offline star catalog database
