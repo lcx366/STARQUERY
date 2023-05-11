@@ -15,7 +15,7 @@ from .utils.df2info import df2info
 from .catalog_query import search_box,search_cone,search_box_magpm,search_cone_magpm,box2seqs,cone2seqs,_load_files
 from .tiles_draw import search_draw
 from .wcs import xy_catalog
-from .astroalign import _generate_invariants
+from .invariantfeatures import _generate_invariants
 
 class StarCatalog(object):
 
@@ -958,7 +958,7 @@ class StarCatalogSimplified(object):
         fp_radecs = []
         for seq in range(npix):
 
-            desc = 'Generating starcatalog tiles {:s}{:d}{:s} of {:d}'.format(Fore.BLUE,seq+1,Fore.RESET,npix)
+            desc = 'Generating starcatalog sky area index {:s}{:d}{:s} of {:d}'.format(Fore.BLUE,seq+1,Fore.RESET,npix)
             print(desc,end='\r')
 
             fp_radec = hp.pix2ang(nside,seq,lonlat=True)

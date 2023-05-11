@@ -1,11 +1,11 @@
 """
-Some subfunctions of ASTROALIGN from Martin Beroiz.
+Some slightly modified subroutines of package ASTROALIGN from Martin Beroiz.
 """
 
 import numpy as _np
 
 # The number of nearest neighbors of a given star(including itself) to construct the triangle invariants.
-NUM_NEAREST_NEIGHBORS = 5
+NUM_NEAREST_NEIGHBORS = 6
 
 def _invariantfeatures(x1, x2, x3):
     """
