@@ -159,11 +159,11 @@ Visualize the scope of the search area and the coverage of the corresponding cat
 The celestial sphere can be divided into multiple equal-area sky regions using the HEALPix algorithm. Then a feature library is established in each sky area for blind matching of star maps. 
 
 <p align="middle">
-  <img src="readme_figs/healpix_list.png" width="350" />
+  <img src="readme_figs/healpix_list.png" width="400" />
 </p>
 
 <p align="middle">
-  <img src="readme_figs/healpix_table.png" width="350" />
+  <img src="readme_figs/healpix_table.png" width="400" />
 </p>
 
 By default, we adopt the following strategy to divide the sky area:
