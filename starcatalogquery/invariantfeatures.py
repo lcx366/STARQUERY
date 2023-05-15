@@ -3,6 +3,9 @@ Some slightly modified subroutines of package ASTROALIGN from Martin Beroiz.
 """
 
 import numpy as _np
+from scipy.spatial import KDTree
+from itertools import combinations
+from functools import partial
 
 # The number of nearest neighbors of a given star(including itself) to construct the triangle invariants.
 NUM_NEAREST_NEIGHBORS = 6
@@ -53,10 +56,6 @@ def _generate_invariants(sources):
     Return an array of the indices of `sources` that correspond to each
     invariant, arranged as described in _arrangetriplet.
     """
-    from scipy.spatial import KDTree
-    from itertools import combinations
-    from functools import partial
-
     arrange = partial(_arrangetriplet, sources=sources)
 
     inv = []
@@ -67,7 +66,7 @@ def _generate_invariants(sources):
     for asrc in sources:
         __, indx = coordtree.query(asrc, knn)
 
-        # Generate all possible triangles with the 5 indx provided, and store
+        # Generate all possible triangles with the 6 indx provided, and store
         # them with the order (a, b, c) defined in _arrangetriplet
         all_asterism_triang = [
             arrange(vertex_indices=list(cmb)) for cmb in combinations(indx, 3)

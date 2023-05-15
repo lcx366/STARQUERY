@@ -7,6 +7,7 @@ from astropy.time import Time
 from astropy.coordinates import SkyCoord
 from colorama import Fore
 import healpy as hp
+from scipy.spatial import KDTree
 
 from .catalog_download import catalog_download,hygv3_download
 from .catalog_check import catalog_check
@@ -911,7 +912,7 @@ class StarCatalogSimplified(object):
         width = int(self.tile_size.split()[0]) 
         search_draw(width,kwargs)   
 
-    def h5_incices(self,fov,pixel_width,max_control_points=40):
+    def h5_incices(self,fov,pixel_width,max_control_points=60):
         """
         Generate a h5-formatted star catalog file, which records the center pointing of each sky area, the pixel coordinates of the stars, the triangle invariants and the asterism indices.
 
@@ -925,7 +926,7 @@ class StarCatalogSimplified(object):
         Inputs:
             fov -> [float] FOV of camera
             pixel_width -> [float] Pixel width in [deg]
-            max_control_points -> [int,optional,default=None] Number of brightest stars in the search area. If None, it is the number of all stars in the search area by deault.
+            max_control_points -> [int,optional,default=60] Number of brightest stars in the search area.
 
         Outputs:
             h5-formatted star catalog file    
@@ -933,7 +934,7 @@ class StarCatalogSimplified(object):
         dir_h5 = 'starcatalogs/indices/{:s}/'.format(self.sc_name)
         Path(dir_h5).mkdir(parents=True, exist_ok=True)  
 
-        outh5 = dir_h5 + 'fov{:d}_mag{:d}_mcp{:d}_{:.1f}.h5'.format(fov,self.mag_cutoff,max_control_points,self.epoch)
+        outh5 = dir_h5 + 'fov{:d}_mag{:.1f}_mcp{:d}_{:.1f}.h5'.format(fov,self.mag_cutoff,max_control_points,self.epoch)
 
         if os.path.exists(outh5): return outh5 
 
@@ -944,15 +945,15 @@ class StarCatalogSimplified(object):
         stars_invariants_grp = fout.create_group("stars_invariants")
         stars_asterisms_grp = fout.create_group("stars_asterisms")
 
-        if fov > 30: 
+        if fov > 43: 
             nside = 1
-            search_radius = 60
-        elif fov > 10:
+            search_radius = 34
+        elif fov > 22:
             nside = 2
-            search_radius = 30
+            search_radius = 17
         else:
             nside = 4
-            search_radius = 15
+            search_radius = 9
 
         npix = hp.nside2npix(nside)
         fp_radecs = []
@@ -965,12 +966,12 @@ class StarCatalogSimplified(object):
             fp_radecs.append(fp_radec)
 
             stars = self.search_cone(fp_radec,search_radius,max_control_points)
-            pixels = stars.pixel_xy(pixel_width)
+            stars = stars.pixel_xy(pixel_width)
+            stars = stars.invariantfeatures()
 
-            stars_xy_grp.create_dataset(str(seq), data=pixels.xy)
-            stars_invariants, stars_asterisms = _generate_invariants(pixels.xy)
-            stars_invariants_grp.create_dataset(str(seq), data=stars_invariants)
-            stars_asterisms_grp.create_dataset(str(seq), data=stars_asterisms)  
+            stars_xy_grp.create_dataset(str(seq), data=stars.xy)
+            stars_invariants_grp.create_dataset(str(seq), data=stars.invariants)
+            stars_asterisms_grp.create_dataset(str(seq), data=stars.asterisms)  
 
         fout.create_dataset("fp_radecs", data=np.array(fp_radecs))
         fout.close() # close file
@@ -1030,3 +1031,16 @@ class Stars(object):
         info['xy'] = np.stack([x,y]).T
 
         return Stars(info)
+
+    def invariantfeatures(self):
+        """
+        1. Calculate the unique invariants (L2/L1,L1/L0), where L2 >= L1 >= L0 are the three sides of the triangle composed of stars.
+        2. Construct the 2D Tree from the the unique invariants.
+        3. Record an array of the indices of stars that correspond to each invariant.
+        """
+        if not hasattr(self,'xy'): raise Exception("The pixel coordinates of stars should be caiculated first by `.pixel_xy(pixel_width`)")
+        inv_uniq, triang_vrtx_uniq = _generate_invariants(self.xy)
+        inv_uniq_tree = KDTree(inv_uniq)
+        self.info.update({'invariants':inv_uniq,'asterisms':triang_vrtx_uniq,'invariants_2dtree':inv_uniq_tree})
+        self.invariants,self.asterisms,self.kdtree = inv_uniq,triang_vrtx_uniq,inv_uniq_tree
+        return self  

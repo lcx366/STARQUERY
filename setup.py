@@ -2,7 +2,7 @@ from setuptools import setup,find_packages
 
 setup(
     name='starcatalogquery',
-    version='0.1.3',
+    version='0.1.4',
     description='A package to establish an offline star catalog query database',
     author='Chunxiao Li',
     author_email='lcx366@126.com',
@@ -10,7 +10,7 @@ setup(
     license='MIT',
     long_description_content_type='text/markdown',
     long_description=open('README.md', 'rb').read().decode('utf-8'),
-    keywords = ['Star Catalog'],
+    keywords = ['StarCatalog'],
     python_requires = '>=3.8',
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -25,6 +25,7 @@ setup(
     packages = find_packages(),
     include_package_data=True,
     install_requires=[
+        'scipy',
         'pyshtools',
         'astropy>=4.3.1',
         'pandas',

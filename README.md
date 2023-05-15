@@ -134,6 +134,13 @@ Given the pixel width of the detector, calculate the pixel coordinates of the fi
 >>> print(stars.xy)
 ```
 
+### Calculate the triangle invariants and the asterism indices of the filtered stars
+
+```python
+>>> stars.invariantfeatures()
+>>> print(stars.invariants,stars.asterisms,stars.kdtree)
+```
+
 ### Visualization
 
 Visualize the scope of the search area and the coverage of the corresponding catalog tiles.
@@ -168,16 +175,16 @@ The celestial sphere can be divided into multiple equal-area sky regions using t
 
 By default, we adopt the following strategy to divide the sky area:
 
-- For FOV > 30, k = 0; 
+- For FOV > 43, k = 0; 
 
-- For FOV > 10, k = 1;
+- For FOV > 22, k = 1;
 
 - Else, k = 2
 
 ```python
 >>> fov,pixel_width = 20,0.01 # in [deg]
 >>> # Set the maximum number of brightest stars in earch sky area
->>> max_control_points = 40 # optional, default = 40
+>>> max_control_points = 40 # optional, default = 60
 >>> outh5 = gaiadr3_simplified.h5_incices(fov,pixel_width,max_control_points)
 ```
 
@@ -193,7 +200,7 @@ A h5-formatted star catalog file `outh5`is generated, which records the center p
 
 ### Load the local offline star catalog database
 
-Load the raw star catalog
+#### Load the raw or reduced star catalog
 
 ```python
 >>> from starcatalogquery import StarCatalog
@@ -205,7 +212,7 @@ Load the raw star catalog
 >>> # hygv3_reduced = StarCatalog.load('reduced','sc_name',tile_size,dir_from_reduced)
 ```
 
-Load the simplified star catalog
+#### Load the simplified star catalog
 
 ```python
 >>> from starcatalogquery import StarCatalog
@@ -217,6 +224,10 @@ Load the simplified star catalog
 ```
 
 ## Change log
+
+- **0.1.4 — May 13, 2023**
+  
+  - Add method `.invariantfeatures()` to class `Stars`, which calculates the triangle invariants and constructs a 2D Tree; and records the asterism indices for each triangle.
 
 - **0.1.0 — May 10,  2023**
   
