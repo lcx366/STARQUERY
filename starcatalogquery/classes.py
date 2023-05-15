@@ -138,7 +138,7 @@ class StarCatalog(object):
     
         # close the file
         fin.close()   
-        return fp_radecs,stars_xy,stars_invariants,stars_asterisms    
+        return fp_radecs,stars_xy,stars_invariants,stars_asterisms  
 
 class StarCatalogRaw(object):
     """
@@ -966,8 +966,8 @@ class StarCatalogSimplified(object):
             fp_radecs.append(fp_radec)
 
             stars = self.search_cone(fp_radec,search_radius,max_control_points)
-            stars = stars.pixel_xy(pixel_width)
-            stars = stars.invariantfeatures()
+            stars.pixel_xy(pixel_width)
+            stars.invariantfeatures()
 
             stars_xy_grp.create_dataset(str(seq), data=stars.xy)
             stars_invariants_grp.create_dataset(str(seq), data=stars.invariants)
@@ -975,7 +975,7 @@ class StarCatalogSimplified(object):
 
         fout.create_dataset("fp_radecs", data=np.array(fp_radecs))
         fout.close() # close file
-        return outh5
+        return outh5    
             
 class Stars(object):
     """
@@ -1025,12 +1025,11 @@ class Stars(object):
         # Define WCS transformation and convert the celestial coordinates to pixel coordinates
         x,y = xy_catalog(self.center,self.radec,pixel_width)
 
-        info = copy.deepcopy(self.info)
-        df = info['df']
+        df = self.info['df']
         df['pixelx'],df['pixely'] = x,y
-        info['xy'] = np.stack([x,y]).T
-
-        return Stars(info)
+        xy = np.stack([x,y]).T
+        self.xy = self.info['xy'] = xy
+        return self
 
     def invariantfeatures(self):
         """

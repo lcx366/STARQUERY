@@ -130,15 +130,15 @@ Given the pixel width of the detector, calculate the pixel coordinates of the fi
 
 ```python
 >>> pixel_width = 0.01 # pixel width in [deg]
->>> stars = gaiadr3_simplified_stars.pixel_xy(0.01)
->>> print(stars.xy)
+>>> gaiadr3_simplified_stars.pixel_xy(0.01)
+>>> print(gaiadr3_simplified_stars.xy)
 ```
 
 ### Calculate the triangle invariants and the asterism indices of the filtered stars
 
 ```python
->>> stars.invariantfeatures()
->>> print(stars.invariants,stars.asterisms,stars.kdtree)
+>>> gaiadr3_simplified_stars.invariantfeatures()
+>>> print(gaiadr3_simplified_stars.invariants,gaiadr3_simplified_stars.asterisms,.kdtree)
 ```
 
 ### Visualization
@@ -207,9 +207,9 @@ A h5-formatted star catalog file `outh5`is generated, which records the center p
 >>> sc_name = 'hygv3' # Name of the star catalog
 >>> tile_size = 2 # Size of the tile in [deg]
 >>> dir_from_raw = '/Volumes/TOSHIBA/starcatalogs/raw/hygv3/res2/' # Path of the raw starcatalog
->>> hygv3_raw = StarCatalog.load('raw','sc_name',tile_size,dir_from_raw)
+>>> hygv3_raw = StarCatalog.load('raw',sc_name,tile_size,dir_from_raw)
 >>> # dir_from_reduced = '/Volumes/TOSHIBA/starcatalogs/reduced/hygv3/res2/' # Path of the reduced starcatalog
->>> # hygv3_reduced = StarCatalog.load('reduced','sc_name',tile_size,dir_from_reduced)
+>>> # hygv3_reduced = StarCatalog.load('reduced',sc_name,tile_size,dir_from_reduced)
 ```
 
 #### Load the simplified star catalog
@@ -220,7 +220,7 @@ A h5-formatted star catalog file `outh5`is generated, which records the center p
 >>> tile_size = 5 # Size of the tile in [deg]
 >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalogs/raw/hygv3/res5/mag8.0/epoch2023.0/' # Path of the starcatalog
 >>> kwargs = {'mag_cutoff':8,'epoch':2023.0}
->>> hygv3_raw = StarCatalog.load('simplified','sc_name',tile_size,dir_from_simplified,**kwargs)
+>>> hygv3_raw = StarCatalog.load('simplified',sc_name,tile_size,dir_from_simplified,**kwargs)
 ```
 
 ## Change log
