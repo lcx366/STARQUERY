@@ -175,11 +175,11 @@ The celestial sphere can be divided into multiple equal-area sky regions using t
 
 By default, we adopt the following strategy to divide the sky area:
 
-- For FOV > 43, k = 0; 
+- For FOV > 43, k = 0, radius of cone search = 34; 
 
-- For FOV > 22, k = 1;
+- For FOV > 22, k = 1, radius of cone search = 17;
 
-- Else, k = 2
+- Else, k = 2, radius of cone search = 9
 
 ```python
 >>> fov,pixel_width = 20,0.01 # in [deg]
