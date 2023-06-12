@@ -225,7 +225,7 @@ A h5-formatted star catalog file `outh5`is generated, which records the center p
 
 ## Change log
 
-- **0.1.4 — May 13, 2023**
+- **0.1.5 — May 13, 2023**
   
   - Add method `.invariantfeatures()` to class `Stars`, which calculates the triangle invariants and constructs a 2D Tree; and records the asterism indices for each triangle.
 

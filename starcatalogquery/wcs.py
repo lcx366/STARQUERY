@@ -52,10 +52,11 @@ def xy_catalog(fp_radec,radec,pixel_width):
 
     Outputs:
         x -> [array of float] x components of the star pixel coordinates       
-        y -> [array of float] y components of the star pixel coordinates    
+        y -> [array of float] y components of the star pixel coordinates   
+        wcs -> Instance of class WCS 
     """
     wcs = wcs_trans(pixel_width,fp_radec)
     radec = SkyCoord(radec, unit='deg')
     x,y = np.array(wcs.world_to_pixel(radec))
 
-    return x,y   
+    return x,y,wcs   

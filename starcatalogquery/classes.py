@@ -1023,12 +1023,13 @@ class Stars(object):
             Instance of class Stars       
         """
         # Define WCS transformation and convert the celestial coordinates to pixel coordinates
-        x,y = xy_catalog(self.center,self.radec,pixel_width)
+        x,y,wcs = xy_catalog(self.center,self.radec,pixel_width)
 
         df = self.info['df']
         df['pixelx'],df['pixely'] = x,y
         xy = np.stack([x,y]).T
         self.xy = self.info['xy'] = xy
+        self.wcs = self.info['wcs'] = wcs
         return self
 
     def invariantfeatures(self):

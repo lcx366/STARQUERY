@@ -2,7 +2,7 @@ from setuptools import setup,find_packages
 
 setup(
     name='starcatalogquery',
-    version='0.1.5',
+    version='0.1.6',
     description='A package to establish an offline star catalog query database',
     author='Chunxiao Li',
     author_email='lcx366@126.com',
@@ -29,6 +29,7 @@ setup(
         'pyshtools',
         'astropy>=4.3.1',
         'pandas',
+        'h5py',
         'colorama',
         'healpy',
         'cartopy',
