@@ -59,7 +59,7 @@ class StarCatalog(object):
 
         return StarCatalogRaw(info)  
 
-    def load(_mode,sc_name,tile_size,dir_from=None,**kwargs):
+    def load(_mode,sc_name,tile_size,dir_from=None):
         """
         Load the star catalog files from the local database.
 
@@ -75,9 +75,7 @@ class StarCatalog(object):
             >>>
             >>> # load the simplified star catalog GAIADR3
             >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalog/simplified/gaiadr3/res2/mag8.0/epoch2023.0/'
-            >>> kwargs = {'mag_cutoff':8,'epoch':2023.0}
-            >>> gaiadr3_simplified = StarCatalog.load('simplified','gaiadr3',2,dir_from_simplified,**kwargs)
-
+            >>> gaiadr3_simplified = StarCatalog.load('simplified','gaiadr3',2,dir_from_simplified)
         Inputs:
              _mode -> [str] Types of star catalogs, including 'raw', 'reduced', 'simplified', where
                 'raw' represents the original star catalog, which contains all information about the star
@@ -86,8 +84,6 @@ class StarCatalog(object):
             sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
             tile_size -> [int] Size of the tile in [deg]
             dir_from -> [str,optional,default=None] The loading path of the star catalog files. If None, the path is automatically assigned to a suitable directory by default.
-            kwargs -> [dict] Keyword arguments, only used for simplified star catalog, such as {'mag_cutoff':8,'epoch':2023.0}
-
         Outputs:
             Instance of class StarCatalog
         """
@@ -96,15 +92,8 @@ class StarCatalog(object):
         elif _mode == 'reduced':
             starcatalog = StarCatalogReduced.load(sc_name,tile_size,dir_from)
         elif _mode == 'simplified':    
-            if 'mag_cutoff' in kwargs: 
-                mag_cutoff = kwargs['mag_cutoff']
-            else:     
-                raise Exception("'mag_cutoff' should be specified by a **dictionary for simplified starcatalog.")                
-            if 'epoch' in kwargs: 
-                epoch = kwargs['epoch']
-            else:    
-                raise Exception("'epoch' should be specified by a **dictionary for simplified starcatalog.")
-            starcatalog = StarCatalogSimplified.load(sc_name,tile_size,mag_cutoff,epoch,dir_from)
+        mag_cutoff,epoch = np.array(dir_from.split('mag')[1][:-1].split('/epoch'),dtype=float) 
+        starcatalog = StarCatalogSimplified.load(sc_name,tile_size,mag_cutoff,epoch,dir_from)
 
         return starcatalog 
 
@@ -505,7 +494,7 @@ class StarCatalogRaw(object):
         info = df2info(self.sc_name,center,df,max_control_points) 
         return Stars(info)
 
-    def _search_draw(self,kwargs):
+    def _search_draw(self,search_area):
         """
         Visualize the scope of the search area and the coverage of the corresponding tiles.
 
@@ -513,11 +502,11 @@ class StarCatalogRaw(object):
             >>> from starcatalogquery import StarCatalogRaw
             >>> dir_from_raw = '/Volumes/TOSHIBA/starcatalog/raw/gaiadr3/res2/'
             >>> gaiadr3_raw = StarCatalogRaw.load('raw','gaiadr3',2,dir_from_raw)
-            >>> kwargs = {'cone':[20,30,10]}
-            >>> stars = gaiadr3_raw._search_draw(kwargs)
+            >>> cone_area = {'cone':[20,30,10]}
+            >>> stars = gaiadr3_raw._search_draw(cone_area)
 
         Inputs:
-            kwargs -> [dict] Keyword arguments, which defines the scope of the search area, such as {'cone':[20,30,10]} or {'box':[20,30,30,40]}, where
+            search_area -> [dict] The scope of the search area, such as {'cone':[20,30,10]} or {'box':[20,30,30,40]}, where
             for {'box':[ra_min,dec_min,ra_max,dec_max]}:
                 ra_min -> [float] Left border of RA in [deg].
                 dec_min -> [float] Lower border of DEC in [deg].
@@ -532,7 +521,7 @@ class StarCatalogRaw(object):
             An image that shows the scope of the search area and the coverage of the corresponding tiles.          
         """
         tile_size = int(self.tile_size.split()[0]) 
-        search_draw(tile_size,kwargs)       
+        search_draw(tile_size,search_area)       
 
 class StarCatalogReduced(object):
     """
@@ -614,6 +603,8 @@ class StarCatalogReduced(object):
             >>> gaiadr3_simplified = gaiadr3_reduced.simplify()
 
         Inputs:
+            mag_threshold -> [float] Apparent magnitude limit of the detector  
+            t_pm -> [float] The epoch when the search was performed
             dir_simplified -> [str,optional,default=None] The path of the simplified star catalog files to store. If None, the path is automatically assigned to a suitable directory by default.
 
         Outputs:
@@ -729,7 +720,7 @@ class StarCatalogReduced(object):
         info = df2info(self.sc_name,center,df,max_control_points) 
         return Stars(info)
 
-    def _search_draw(self,kwargs):
+    def _search_draw(self,search_area):
         """
         Visualize the scope of the search area and the coverage of the corresponding tiles.
 
@@ -738,11 +729,11 @@ class StarCatalogReduced(object):
             >>> # load the reduced star catalog GAIADR3
             >>> dir_from_reduced = '/Volumes/TOSHIBA/starcatalog/reduced/gaiadr3/res2/'
             >>> gaiadr3_reduced = StarCatalogReduced.load('reduced','gaiadr3',2,dir_from_reduced)
-            >>> kwargs = {'cone':[20,30,10]}
-            >>> stars = gaiadr3_reduced._search_draw(kwargs)
+            >>> cone_area = {'cone':[20,30,10]}
+            >>> stars = gaiadr3_reduced._search_draw(cone_area)
 
         Inputs:
-            kwargs -> [dict] Keyword arguments, which defines the scope of the search area, such as {'cone':[20,30,10]} or {'box':[20,30,30,40]}, where
+            search_area -> [dict] The scope of the search area, such as {'cone':[20,30,10]} or {'box':[20,30,30,40]}, where
             for {'box':[ra_min,dec_min,ra_max,dec_max]}:
                 ra_min -> [float] Left border of RA in [deg].
                 dec_min -> [float] Lower border of DEC in [deg].
@@ -757,7 +748,7 @@ class StarCatalogReduced(object):
             An image that shows the scope of the search area and the coverage of the corresponding tiles.          
         """
         width = int(self.tile_size.split()[0]) 
-        search_draw(width,kwargs)   
+        search_draw(width,search_area)   
 
 class StarCatalogSimplified(object):
     """
@@ -882,7 +873,7 @@ class StarCatalogSimplified(object):
         info = df2info(self.sc_name,center,df,max_control_points) 
         return Stars(info)
 
-    def _search_draw(self,kwargs):
+    def _search_draw(self,search_area):
         """
         Visualize the scope of the search area and the coverage of the corresponding tiles.
 
@@ -891,11 +882,11 @@ class StarCatalogSimplified(object):
             >>> # load the simplified star catalog GAIADR3
             >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalog/simplified/gaiadr3/res2/'
             >>> gaiadr3_simplified = StarCatalogReduced.load('simplified','gaiadr3',2,dir_from_simplified)
-            >>> kwargs = {'cone':[20,30,10]}
-            >>> stars = gaiadr3_simplified._search_draw(kwargs)
+            >>> cone_area = {'cone':[20,30,10]}
+            >>> stars = gaiadr3_simplified._search_draw(cone_area)
 
         Inputs:
-            kwargs -> [dict] Keyword arguments, which defines the scope of the search area, such as {'cone':[20,30,10]} or {'box':[20,30,30,40]}, where
+            search_area -> [dict] The scope of the search area, such as {'cone':[20,30,10]} or {'box':[20,30,30,40]}, where
             for {'box':[ra_min,dec_min,ra_max,dec_max]}:
                 ra_min -> [float] Left border of RA in [deg].
                 dec_min -> [float] Lower border of DEC in [deg].
@@ -910,7 +901,7 @@ class StarCatalogSimplified(object):
             An image that shows the scope of the search area and the coverage of the corresponding tiles.          
         """
         width = int(self.tile_size.split()[0]) 
-        search_draw(width,kwargs)   
+        search_draw(width,search_area)   
 
     def h5_incices(self,fov,pixel_width,max_control_points=60):
         """

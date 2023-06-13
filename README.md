@@ -146,10 +146,10 @@ Given the pixel width of the detector, calculate the pixel coordinates of the fi
 Visualize the scope of the search area and the coverage of the corresponding catalog tiles.
 
 ```python
->>> kwargs_box = {'box':[5,15,35,45]} # {'box':[ra_min,dec_min,ra_max,dec_max]}
->>> kwargs_cone = {'cone':[20,30,15]} # {'cone':[ra_c,dec_c,radius]}
->>> gaiadr3_simplified._search_draw(kwargs_box)
->>> gaiadr3_simplified._search_draw(kwargs_cone)
+>>> box_area = {'box':[5,15,35,45]} # {'box':[ra_min,dec_min,ra_max,dec_max]}
+>>> cone_area = {'cone':[20,30,15]} # {'cone':[ra_c,dec_c,radius]}
+>>> gaiadr3_simplified._search_draw(box_area)
+>>> gaiadr3_simplified._search_draw(cone_area)
 >>> # ._search_draw is also available for gaiadr3_raw and gaiadr3_reduced
 ```
 
@@ -219,8 +219,7 @@ A h5-formatted star catalog file `outh5`is generated, which records the center p
 >>> sc_name = 'hygv3' # Name of the star catalog
 >>> tile_size = 5 # Size of the tile in [deg]
 >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalogs/raw/hygv3/res5/mag8.0/epoch2023.0/' # Path of the starcatalog
->>> kwargs = {'mag_cutoff':8,'epoch':2023.0}
->>> hygv3_raw = StarCatalog.load('simplified',sc_name,tile_size,dir_from_simplified,**kwargs)
+>>> hygv3_raw = StarCatalog.load('simplified',sc_name,tile_size,dir_from_simplified)
 ```
 
 ## Change log
