@@ -59,7 +59,7 @@ class StarCatalog(object):
 
         return StarCatalogRaw(info)  
 
-    def load(_mode,sc_name,tile_size,dir_from=None):
+    def load(dir_from=None):
         """
         Load the star catalog files from the local database.
 
@@ -67,33 +67,37 @@ class StarCatalog(object):
             >>> from starcatalogquery import StarCatalog
             >>> # load the raw star catalog GAIADR3
             >>> dir_from_raw = '/Volumes/TOSHIBA/starcatalog/raw/gaiadr3/res2/'
-            >>> gaiadr3_raw = StarCatalog.load('raw','gaiadr3',2,dir_from_raw)
+            >>> gaiadr3_raw = StarCatalog.load(dir_from_raw)
             >>>
             >>> # load the reduced star catalog GAIADR3
             >>> dir_from_reduced = '/Volumes/TOSHIBA/starcatalog/reduced/gaiadr3/res2/'
-            >>> gaiadr3_reduced = StarCatalog.load('reduced','gaiadr3',2,dir_from_reduced)
+            >>> gaiadr3_reduced = StarCatalog.load(dir_from_reduced)
             >>>
             >>> # load the simplified star catalog GAIADR3
             >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalog/simplified/gaiadr3/res2/mag8.0/epoch2023.0/'
-            >>> gaiadr3_simplified = StarCatalog.load('simplified','gaiadr3',2,dir_from_simplified)
+            >>> gaiadr3_simplified = StarCatalog.load(dir_from_simplified)
         Inputs:
-             _mode -> [str] Types of star catalogs, including 'raw', 'reduced', 'simplified', where
-                'raw' represents the original star catalog, which contains all information about the star
-                'reduced' represents the reduced star catalog, which contains the position, proper motion, apparent magnitude, epoch of the star
-                'simplified' represents the minimalist star catalog, which only includes the position and apparent magnitude of stars at a specific epoch
-            sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
-            tile_size -> [int] Size of the tile in [deg]
             dir_from -> [str,optional,default=None] The loading path of the star catalog files. If None, the path is automatically assigned to a suitable directory by default.
         Outputs:
             Instance of class StarCatalog
         """
+        _mode,sc_name,tile_size = dir_from.split('starcatalogs/')[1].split('/')[:3]
+        tile_size = int(tile_size[3:])
+
+        # _mode -> [str] Types of star catalogs, including 'raw', 'reduced', 'simplified', where
+        # 'raw' represents the original star catalog, which contains all information about the star
+        # 'reduced' represents the reduced star catalog, which contains the position, proper motion, apparent magnitude, epoch of the star
+        # 'simplified' represents the minimalist star catalog, which only includes the position and apparent magnitude of stars at a specific epoch
+        # sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        # tile_size -> [int] Size of the tile in [deg]
+
         if _mode == 'raw':
             starcatalog = StarCatalogRaw.load(sc_name,tile_size,dir_from)
         elif _mode == 'reduced':
             starcatalog = StarCatalogReduced.load(sc_name,tile_size,dir_from)
         elif _mode == 'simplified':    
-        mag_cutoff,epoch = np.array(dir_from.split('mag')[1][:-1].split('/epoch'),dtype=float) 
-        starcatalog = StarCatalogSimplified.load(sc_name,tile_size,mag_cutoff,epoch,dir_from)
+            mag_cutoff,epoch = np.array(dir_from.split('mag')[1][:-1].split('/epoch'),dtype=float) 
+            starcatalog = StarCatalogSimplified.load(sc_name,tile_size,mag_cutoff,epoch,dir_from)
 
         return starcatalog 
 

@@ -204,29 +204,25 @@ A h5-formatted star catalog file `outh5`is generated, which records the center p
 
 ```python
 >>> from starcatalogquery import StarCatalog
->>> sc_name = 'hygv3' # Name of the star catalog
->>> tile_size = 2 # Size of the tile in [deg]
 >>> dir_from_raw = '/Volumes/TOSHIBA/starcatalogs/raw/hygv3/res2/' # Path of the raw starcatalog
->>> hygv3_raw = StarCatalog.load('raw',sc_name,tile_size,dir_from_raw)
+>>> hygv3_raw = StarCatalog.load(dir_from_raw)
 >>> # dir_from_reduced = '/Volumes/TOSHIBA/starcatalogs/reduced/hygv3/res2/' # Path of the reduced starcatalog
->>> # hygv3_reduced = StarCatalog.load('reduced',sc_name,tile_size,dir_from_reduced)
+>>> # hygv3_reduced = StarCatalog.load(dir_from_reduced)
 ```
 
 #### Load the simplified star catalog
 
 ```python
 >>> from starcatalogquery import StarCatalog
->>> sc_name = 'hygv3' # Name of the star catalog
->>> tile_size = 5 # Size of the tile in [deg]
 >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalogs/raw/hygv3/res5/mag8.0/epoch2023.0/' # Path of the starcatalog
->>> hygv3_raw = StarCatalog.load('simplified',sc_name,tile_size,dir_from_simplified)
+>>> hygv3_raw = StarCatalog.load(dir_from_simplified)
 ```
 
 ## Change log
 
-- **0.1.6 — May 13, 2023**
+- **0.1.7 — Jun 16, 2023**
   
-  - Delete the kwargs in `StarCatalog.load` for loading the simplified star catalog.
+  - Simplified parameter input of `StarCatalog.load` for star catalog loading.
 
 - **0.1.5 — May 13, 2023**
   
