@@ -105,12 +105,12 @@ def _load_files(sc_indices,sc_path,sc_name,_mode):
     Build a generator for loading multiple star catalog tile files.
 
     Usage:
-        >>> _load_files([10,15,178,3430,8009,10002],'starcatalogs/raw/hygv3/res5/','hygv3,'raw')
+        >>> _load_files([10,15,178,3430,8009,10002],'starcatalogs/raw/hygv35/res5/','hygv35,'raw')
 
     Inputs:
         sc_indices -> [array of int] Indices of the star catalog tile files to load.  
-        sc_path -> [str] Path of starcatalog tile files, such as 'starcatalogs/raw/hygv3/res5/'
-        sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        sc_path -> [str] Path of starcatalog tile files, such as 'starcatalogs/raw/hygv35/res5/'
+        sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
         _mode -> [str] Types of star catalogs, including 'raw', 'reduced', 'simplified', where
             'raw' represents the original star catalog, which contains all information about the star
             'reduced' represents the reduced star catalog, which contains the position, proper motion, apparent magnitude, epoch of the star
@@ -133,7 +133,7 @@ def search_box_magpm(radec_box,sc_path,sc_name,tile_size,_mode,mag_threshold,t_p
     Perform a rectangle search of stars on the reduced star catalog.
 
     Usage:
-        >>> df = search_box([20,30,30,40],'starcatalogs/reduced/hygv3/res5/','hygv3',5,'reduced',8,2023.5)
+        >>> df = search_box([20,30,30,40],'starcatalogs/reduced/hygv35/res5/','hygv35',5,'reduced',8,2023.5)
 
     Inputs:
         radec_box -> [int,array_like] Rectangular search area in format of [ra_min,dec_min,ra_max,dec_max], where
@@ -141,8 +141,8 @@ def search_box_magpm(radec_box,sc_path,sc_name,tile_size,_mode,mag_threshold,t_p
             dec_min -> [float] Lower border of DEC in [deg].
             ra_max -> [float] Right border of RA in [deg].
             dec_max -> [float] Upper border of DEC in [deg].
-        sc_path -> [str] Path of starcatalog tile files, such as 'starcatalogs/reduced/hygv3/'
-        sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        sc_path -> [str] Path of starcatalog tile files, such as 'starcatalogs/reduced/hygv35/'
+        sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
         tile_size -> [int] Size of the tile in [deg]
         _mode -> [str] Types of star catalogs, including 'raw', 'reduced', 'simplified', where
             'raw' represents the original star catalog, which contains all information about the star
@@ -192,15 +192,15 @@ def search_cone_magpm(center,radius,sc_path,sc_name,tile_size,_mode,mag_threshol
     Perform a cone search of stars on the reduced star catalog.
 
     Usage:
-        >>> df = search_cone([20,30],10,'starcatalogs/reduced/hygv3/res5/','hygv3',5,'reduced',8,2023.5)
+        >>> df = search_cone([20,30],10,'starcatalogs/reduced/hygv35/res5/','hygv35',5,'reduced',8,2023.5)
 
     Inputs:
         center -> [int,array_like] Center of the cap in format of [ra_c,dec_c], where
             ra_c -> [float] RA, in [deg].
             dec_c -> [float] DEC, in [deg].
         radius -> [float] Angular radius of the cap, in [deg].
-        sc_path -> [str] Path of starcatalog tile files, such as 'starcatalogs/reduced/hygv3/'
-        sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        sc_path -> [str] Path of starcatalog tile files, such as 'starcatalogs/reduced/hygv35/'
+        sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
         tile_size -> [int] Size of the tile in [deg]. Avaliable values are 1,2,3,5,6,9,10.
         _mode -> [str] Types of star catalogs, including 'raw', 'reduced', 'simplified', where
             'raw' represents the original star catalog, which contains all information about the star
@@ -250,7 +250,7 @@ def search_box(radec_box,sc_path,sc_name,tile_size,_mode):
     Perform a rectangle search of stars on the simplified star catalog.
 
     Usage:
-        >>> df = search_box([20,30,30,40],'starcatalogs/simplified/hygv3/res5/mag8.0/epoch2023.0/','hygv3',5,'simplified')
+        >>> df = search_box([20,30,30,40],'starcatalogs/simplified/hygv35/res5/mag8.0/epoch2023.0/','hygv35',5,'simplified')
 
     Inputs:
         radec_box -> [int,array_like] Rectangular search area in format of [ra_min,dec_min,ra_max,dec_max], where
@@ -258,8 +258,8 @@ def search_box(radec_box,sc_path,sc_name,tile_size,_mode):
             dec_min -> [float] Lower border of DEC in [deg].
             ra_max -> [float] Right border of RA in [deg].
             dec_max -> [float] Upper border of DEC in [deg].
-        sc_path -> [str] Path of starcatalog tile files, such as 'starcatalogs/reduced/hygv3/'
-        sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        sc_path -> [str] Path of starcatalog tile files, such as 'starcatalogs/reduced/hygv35/'
+        sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
         tile_size -> [int] Size of the tile in [deg]
         _mode -> [str] Types of star catalogs, including 'raw', 'reduced', 'simplified', where
             'raw' represents the original star catalog, which contains all information about the star
@@ -289,15 +289,15 @@ def search_cone(center,radius,sc_path,sc_name,tile_size,_mode):
     Perform a cone search of stars on the simplified star catalog.
 
     Usage:
-        >>> df = search_cone([20,30],10,'starcatalogs/simplified/hygv3/res5/mag8.0/epoch2023.0/','hygv3',5,'simplified')
+        >>> df = search_cone([20,30],10,'starcatalogs/simplified/hygv35/res5/mag8.0/epoch2023.0/','hygv35',5,'simplified')
 
     Inputs:
         center -> [int,array_like] Center of the cap in format of [ra_c,dec_c], where
             ra_c -> [float] RA, in [deg].
             dec_c -> [float] DEC, in [deg].
         radius -> [float] Angular radius of the cap, in [deg].
-        sc_path -> [str] Path of starcatalog tile files, such as 'starcatalogs/reduced/hygv3/'
-        sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        sc_path -> [str] Path of starcatalog tile files, such as 'starcatalogs/reduced/hygv35/'
+        sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
         tile_size -> [int] Size of the tile in [deg]. Avaliable values are 1,2,3,5,6,9,10.
         _mode -> [str] Types of star catalogs, including 'raw', 'reduced', 'simplified', where
             'raw' represents the original star catalog, which contains all information about the star

@@ -9,7 +9,7 @@ from colorama import Fore
 import healpy as hp
 from scipy.spatial import KDTree
 
-from .catalog_download import catalog_download,hygv3_download
+from .catalog_download import catalog_download,hygv35_download
 from .catalog_check import catalog_check
 from .utils.starcatalog_statistic import tiles_statistic,starcatalog_info
 from .utils.df2info import df2info
@@ -29,15 +29,15 @@ class StarCatalog(object):
             >>> gaiadr3_raw = StarCatalog.get('gaiadr3',2)
 
         Inputs:
-            sc_name -> [str] Name of the starcatalog to download. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+            sc_name -> [str] Name of the starcatalog to download. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
             tile_size -> [int,optinal,default=None] size of the tile in [deg]. If None, the size of the tile is automatically assigned a feasible maximum according to the name of the star catalog.
             dir_to -> [str,optional,default=None] The download path of the star catalog files. If None, the path is automatically assigned to a suitable directory by default.
 
         Outputs:
             Instance of class StarCatalogRaw
         """
-        if sc_name == 'hygv3': # for HYG v3 star catalog
-            dir_to,dir_size,file_num,validity,tile_size = hygv3_download(tile_size,dir_to) 
+        if sc_name == 'hygv35': # for HYG v35 star catalog
+            dir_to,dir_size,file_num,validity,tile_size = hygv35_download(tile_size,dir_to) 
 
         else: # for other star catalogs
 
@@ -88,7 +88,7 @@ class StarCatalog(object):
         # 'raw' represents the original star catalog, which contains all information about the star
         # 'reduced' represents the reduced star catalog, which contains the position, proper motion, apparent magnitude, epoch of the star
         # 'simplified' represents the minimalist star catalog, which only includes the position and apparent magnitude of stars at a specific epoch
-        # sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        # sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
         # tile_size -> [int] Size of the tile in [deg]
 
         if _mode == 'raw':
@@ -107,7 +107,7 @@ class StarCatalog(object):
 
         Usage:
             >>> from starcatalogquery import StarCatalog
-            >>> infile_h5 = 'starcatalogs/indices/hygv3/fov20_mag8_mcp40_2023.0.h5'
+            >>> infile_h5 = 'starcatalogs/indices/hygv35/fov20_mag8_mcp40_2023.0.h5'
             >>> fp_radecs,stars_xy,stars_invariants,stars_asterisms = read_h5_indices(infile_h5)
         
         Inputs:
@@ -142,7 +142,7 @@ class StarCatalogRaw(object):
         - sc_size: The size of the star catalog.
         - tiles_num: Total number of the tile files.
         - validity: The validity of the star catalog.
-        - sc_name: Name of the starcatalog. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        - sc_name: Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
         - tile_size: Size of the tile in [deg]
         - _mode: Types of star catalogs, including 'raw', 'reduced', 'simplified', where
             'raw' represents the original star catalog, which contains all information about the star
@@ -181,7 +181,7 @@ class StarCatalogRaw(object):
             >>> gaiadr3_raw = StarCatalogRaw.load('raw','gaiadr3',2,dir_from_raw)
 
         Inputs:
-            sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+            sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
             tile_size -> [int] Size of the tile in [deg]
             dir_from -> [str,optional,default=None] The loading path of the star catalog files. If None, the path is automatically assigned to a suitable directory by default.
 
@@ -228,7 +228,7 @@ class StarCatalogRaw(object):
         sc_name = self.sc_name
         print('Reducing the star catalog {:s}, which may take a considerable amount of time'.format(sc_name))  
 
-        if sc_name == 'hygv3':
+        if sc_name == 'hygv35':
             j = 1
             for tile_file in file_list:
                 desc = 'Reducing {:s}{:d}{:s} of {:d}'.format(Fore.BLUE,j,Fore.RESET,self.tiles_num)
@@ -360,7 +360,7 @@ class StarCatalogRaw(object):
 
         df = pd.concat(_load_files(sc_indices,sc_path,sc_name,self._mode))
 
-        if sc_name == 'hygv3':
+        if sc_name == 'hygv35':
             df['ra'] = (df['ra'].astype(float)*15).round(6) # Convert hourangle to deg
             df['epoch'] = 2000.0
         elif sc_name == 'gsc12':
@@ -443,7 +443,7 @@ class StarCatalogRaw(object):
 
         df = pd.concat(_load_files(sc_indices,sc_path,sc_name,self._mode))
 
-        if sc_name == 'hygv3':
+        if sc_name == 'hygv35':
             df['ra'] = (df['ra'].astype(float)*15).round(6) # Convert hourangle to deg
             df['epoch'] = 2000.0
         elif sc_name == 'gsc12':
@@ -536,7 +536,7 @@ class StarCatalogReduced(object):
         - sc_size: The size of the star catalog.
         - tiles_num: Total number of the tile files.
         - validity: The validity of the star catalog.
-        - sc_name: Name of the starcatalog. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        - sc_name: Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
         - tile_size: Size of the tile in [deg]
         - _mode: Types of star catalogs, including 'raw', 'reduced', 'simplified', where
             'raw' represents the original star catalog, which contains all information about the star
@@ -575,7 +575,7 @@ class StarCatalogReduced(object):
             >>> gaiadr3_reduced = StarCatalogReduced.load('reduced','gaiadr3',2,dir_from_reduced)
 
         Inputs:
-            sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+            sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
             tile_size -> [int] Size of the tile in [deg]
             dir_from -> [str,optional,default=None] The loading path of the star catalog files. If None, the path is automatically assigned to a suitable directory by default.
 
@@ -763,7 +763,7 @@ class StarCatalogSimplified(object):
         - sc_size: The size of the star catalog.
         - tiles_num: Total number of the tile files.
         - validity: The validity of the star catalog.
-        - sc_name: Name of the starcatalog. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        - sc_name: Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
         - tile_size: Size of the tile in [deg]
         - _mode: Types of star catalogs, including 'raw', 'reduced', 'simplified', where
             'raw' represents the original star catalog, which contains all information about the star
@@ -802,7 +802,7 @@ class StarCatalogSimplified(object):
             >>> gaiadr3_simplified = StarCatalogSimplified.load('simplified','gaiadr3',2,dir_from_simplified)
 
         Inputs:
-            sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+            sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
             tile_size -> [int] Size of the tile in [deg]
             mag_cutoff -> [float] The truncated magnitude of the simplified star catalog
             epoch -> [float] The epoch of the simplified star catalog

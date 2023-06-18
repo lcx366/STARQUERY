@@ -79,7 +79,7 @@ def catalog_check(scname,tile_size,dir_from=None):
         >>> dir_from,dir_size,file_num,validity = catalog_check(scname,tile_size,dir_from)
 
     Inputs:
-        scname -> [str] Name of the starcatalog. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        scname -> [str] Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
         tile_size -> [int] size of tile in [deg]
         dir_from -> [str,optional,default=None] Path of the starcatalog tile files. 
 

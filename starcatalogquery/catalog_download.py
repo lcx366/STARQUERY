@@ -15,7 +15,7 @@ def catalog_download(scname,tile_size=None,dir_to=None):
         >>> dir_to,tile_size = catalog_download('gsc12')
 
     Inputs:
-        scname -> [str] Name of the starcatalog to download. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        scname -> [str] Name of the starcatalog to download. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
         tile_size -> [int,optinal,default=None] size of tile in [deg]
         dir_to -> [str,optional,default=None] Download path of the starcatalog
 
@@ -85,19 +85,19 @@ def catalog_download(scname,tile_size=None,dir_to=None):
 
     return dir_to,tile_size  
 
-def hygv3_download(tile_size=None,dir_to=None):
+def hygv35_download(tile_size=None,dir_to=None):
     """
-    Download the HYG v3 database and convert it to the tile mode.
+    Download the HYG v35 database and convert it to the tile mode.
 
     Usage: 
-        >>> dir_to,tile_size = hygv3_download(5)
+        >>> dir_to,tile_size = hygv35_download(5)
 
     Inputs:
         tile_size -> [int,optinal,default=None] size of tile in [deg]
         dir_to -> [str,optional,default=None] Download path of the starcatalog    
 
     Outputs: 
-        dir_to -> [str] Path of the starcatalog tile files. If None, the path is assigned to 'starcatalogs/raw/hygv3/<resx>/' by default.
+        dir_to -> [str] Path of the starcatalog tile files. If None, the path is assigned to 'starcatalogs/raw/hygv35/<resx>/' by default.
         dir_size -> [float] The size of the star catalog.
         file_num -> [int] Total number of the tile files.
         validity -> [bool] The validity of the star catalog. 
@@ -111,15 +111,16 @@ def hygv3_download(tile_size=None,dir_to=None):
         if tile_size not in [1,2,3,5,6,9,10]: raise Exception('tile size must be in [1,2,3,5,6,9,10] deg')  
 
     raw_dir_to = str(Path.home()) + '/src/starcatalogs/data/'
-    raw_file = 'hygdata_v3.csv'
+    raw_file = 'hygdata_v35.csv'
     raw_dir_file = raw_dir_to + raw_file
 
-    url = 'https://astronexus.com/downloads/catalogs/hygdata_v3.csv.gz'
+    url = 'https://astronexus.com/downloads/catalogs/hygdata_v35.csv.gz'
+
     raw_dir_file_gz = raw_dir_to + url.split('/')[-1]
 
     if not os.path.exists(raw_dir_to): os.makedirs(raw_dir_to)
     if not os.path.exists(raw_dir_file):
-        desc = "Downloading the HYG v3 database '{:s}' from The Astronomy Nexus.".format(raw_file)
+        desc = "Downloading the HYG v35 database '{:s}' from The Astronomy Nexus.".format(raw_file)
         wget_out = wget_download(url,raw_dir_file_gz,desc)
         g_file = GzipFile(wget_out)
         open(raw_dir_file, "wb").write(g_file.read())
@@ -132,7 +133,7 @@ def hygv3_download(tile_size=None,dir_to=None):
     # Now divide the entire star catalog file into multiple tile files
     print('Divide the entire star catalog file into multiple tile files',end='...')
     if dir_to is None:
-        dir_to = 'starcatalogs/raw/hygv3/res{:d}/'.format(tile_size)  
+        dir_to = 'starcatalogs/raw/hygv35/res{:d}/'.format(tile_size)  
     Path(dir_to).mkdir(parents=True, exist_ok=True) 
 
     df = pd.read_csv(raw_dir_file,skiprows=[1]) # remove the sun
@@ -151,7 +152,7 @@ def hygv3_download(tile_size=None,dir_to=None):
             flag = ra_flag & dec_flag 
             df_sec = df[flag]
 
-            fn = open(dir_to+'hygv3-{:d}.csv'.format(count_ra *i+j), 'w')
+            fn = open(dir_to+'hygv35-{:d}.csv'.format(count_ra *i+j), 'w')
             fn.write('#Objects found : {:d}\n'.format(len(df_sec)))
             df_sec.to_csv(fn,index=False)   
             fn.close() 

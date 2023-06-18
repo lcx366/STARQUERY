@@ -45,14 +45,14 @@ def starcatalog_info(sc_name):
         >>> star_num,mag,description = starcatalog_info('2mass')
 
     Inputs:
-        sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
 
     Outputs:
         star_num -> [str] The total number of stars contained in the catalog
         mag -> [str] The magnitude range of the star catalog
         description -> [str] A brief description of the catalog      
     """
-    if sc_name == 'hygv3':
+    if sc_name == 'hygv35':
         star_num = '~ 0.12 Million'
         mag = '< 9'    
         description = 'The database is a subset of the data in three major catalogs: the Hipparcos Catalog,the Yale Bright Star Catalog (5th Edition), and the Gliese Catalog of Nearby Stars (3rd Edition).'
