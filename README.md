@@ -27,7 +27,7 @@ pip install starcatalogquery --upgrade # to upgrade a pre-existing installation
 ### Build an offline star catalog database
 
 Get the star catalog data from the remote server ([MIKULSKI ARCHIVE&
-SPACE TELESCOPES](https://archive.stsci.edu)) , and build an offline star catalog database locally. Currently, available star catalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+SPACE TELESCOPES](https://archive.stsci.edu)) , and build an offline star catalog database locally. Currently, available star catalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
 
 ```python
 >>> from starcatalogquery import StarCatalog
@@ -42,7 +42,7 @@ We get an instance of class StarCatalogRaw with
         - sc_size: The size of the star catalog.
         - tiles_num: Total number of the tile files.
         - validity: The validity of the star catalog.
-        - sc_name: Name of the starcatalog. Available starcatalogs include 'hygv3', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        - sc_name: Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
         - tile_size: Size of the tile in [deg]
         - _mode: Types of star catalogs, including 'raw', 'reduced', 'simplified', where
             'raw' represents the original star catalog, which contains all information about the star
@@ -194,7 +194,7 @@ A h5-formatted star catalog file `outh5`is generated, which records the center p
 
 ```python
 >>> from starcatalogquery import StarCatalog
->>> infile_h5 = 'starcatalogs/indices/hygv3/fov20_mag8_mcp40_2023.0.h5'
+>>> infile_h5 = 'starcatalogs/indices/hygv35/fov20_mag8_mcp40_2023.0.h5'
 >>> fp_radecs,stars_xy,stars_invariants,stars_asterisms = StarCatalog.read_h5_indices(infile_h5)
 ```
 
@@ -204,18 +204,18 @@ A h5-formatted star catalog file `outh5`is generated, which records the center p
 
 ```python
 >>> from starcatalogquery import StarCatalog
->>> dir_from_raw = '/Volumes/TOSHIBA/starcatalogs/raw/hygv3/res2/' # Path of the raw starcatalog
->>> hygv3_raw = StarCatalog.load(dir_from_raw)
->>> # dir_from_reduced = '/Volumes/TOSHIBA/starcatalogs/reduced/hygv3/res2/' # Path of the reduced starcatalog
->>> # hygv3_reduced = StarCatalog.load(dir_from_reduced)
+>>> dir_from_raw = '/Volumes/TOSHIBA/starcatalogs/raw/hygv35/res2/' # Path of the raw starcatalog
+>>> hygv35_raw = StarCatalog.load(dir_from_raw)
+>>> # dir_from_reduced = '/Volumes/TOSHIBA/starcatalogs/reduced/hygv35/res2/' # Path of the reduced starcatalog
+>>> # hygv35_reduced = StarCatalog.load(dir_from_reduced)
 ```
 
 #### Load the simplified star catalog
 
 ```python
 >>> from starcatalogquery import StarCatalog
->>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalogs/raw/hygv3/res5/mag8.0/epoch2023.0/' # Path of the starcatalog
->>> hygv3_raw = StarCatalog.load(dir_from_simplified)
+>>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalogs/raw/hygv35/res5/mag8.0/epoch2023.0/' # Path of the starcatalog
+>>> hygv35_raw = StarCatalog.load(dir_from_simplified)
 ```
 
 ## Change log
