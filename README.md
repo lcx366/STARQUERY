@@ -73,7 +73,8 @@ The reduced star catalog only contains the celestial position, proper motion, ap
 In order to further reduce the size of the star catalog and improve its query efficiency, we filter out the reduced star catalog according to the limit magnitude of the detector, and make proper motion corrections to obtain a minimalist star catalog.
 
 ```python
->>> gaiadr3_simplified = gaiadr3_reduced.simplify()
+>>> mag_threshold, t_pm = 9.0,2022.0 
+>>> gaiadr3_simplified = gaiadr3_reduced.simplify(mag_threshold,t_pm)
 ```
 
 The simplified(minimalist) star catalog only includes the celetial position and apparent magnitude of stars at a specific epoch.

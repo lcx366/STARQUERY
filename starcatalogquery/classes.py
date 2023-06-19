@@ -604,7 +604,7 @@ class StarCatalogReduced(object):
             >>> # load the reduced star catalog GAIADR3
             >>> dir_from_reduced = '/Volumes/TOSHIBA/starcatalog/reduced/gaiadr3/res2/'
             >>> gaiadr3_reduced = StarCatalogReduced.load('reduced','gaiadr3',2,dir_from_reduced)
-            >>> gaiadr3_simplified = gaiadr3_reduced.simplify()
+            >>> gaiadr3_simplified = gaiadr3_reduced.simplify(9.0,2022.0)
 
         Inputs:
             mag_threshold -> [float] Apparent magnitude limit of the detector  
