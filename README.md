@@ -215,8 +215,8 @@ A h5-formatted star catalog file `outh5`is generated, which records the center p
 
 ```python
 >>> from starcatalogquery import StarCatalog
->>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalogs/raw/hygv35/res5/mag8.0/epoch2023.0/' # Path of the starcatalog
->>> hygv35_raw = StarCatalog.load(dir_from_simplified)
+>>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalogs/simplified/hygv35/res5/mag8.0/epoch2023.0/' # Path of the starcatalog
+>>> hygv35_simplified = StarCatalog.load(dir_from_simplified)
 ```
 
 ## Change log
