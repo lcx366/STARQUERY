@@ -2,7 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 from matplotlib.patches import Rectangle
-from pyshtools.utils import MakeCircleCoord
+from astropy.visualization.wcsaxes import SphericalCircle
+from astropy import units as u
 
 from .catalog_query import cone2seqs,box2seqs,seq2radec  
 
@@ -50,7 +51,6 @@ def plot_circle_PlateCarree(radec_boxes,ra_c,dec_c,r):
     """
     region = left_ra, right_ra, lower_dec, upper_dec = ra_c-1.5*r, ra_c+1.5*r, dec_c-1.5*r, dec_c+1.5*r 
     ra_span = dec_span = 3*r
-    circle = MakeCircleCoord(dec_c,ra_c,r)
         
     # set the map projection
     proj = ccrs.PlateCarree(central_longitude=ra_c)
@@ -72,7 +72,8 @@ def plot_circle_PlateCarree(radec_boxes,ra_c,dec_c,r):
     gl = ax.gridlines(xlocs = xlocs, ylocs = ylocs,draw_labels=True,linestyle='--',alpha=0.7)
     gl.xlabel_style = {'size': 7, 'color': 'gray'}
     gl.ylabel_style = {'size': 7, 'color': 'gray'}
-    ax.plot(circle[:,1], circle[:,0], color='m',lw=1.5,transform=ccrs.Geodetic())
+    circle = SphericalCircle((ra_c*u.deg, dec_c*u.deg), r*u.deg,fc='none',ec='m',lw=1.5,transform=ccrs.Geodetic())
+    ax.add_patch(circle)
     
     for radec_box in radec_boxes:
         ra_min,dec_min,ra_max,dec_max = radec_box

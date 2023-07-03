@@ -221,6 +221,12 @@ A h5-formatted star catalog file `outh5`is generated, which records the center p
 
 ## Change log
 
+- **0.1.8 — Jul 03, 2023**
+  
+  - Get rid of dependency on **pyshtools**
+    - Added function `from_cap` to replace `pysh.SHGrid.from_cap` in *catalog_query.py*
+    - Using `SphericalCircle` in *astropy* to replace `MakeCircleCoord` in *pyshtools.utils* 
+
 - **0.1.7 — Jun 16, 2023**
   
   - Simplified parameter input of `StarCatalog.load` for star catalog loading.

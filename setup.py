@@ -2,7 +2,7 @@ from setuptools import setup,find_packages
 
 setup(
     name='starcatalogquery',
-    version='0.1.7',
+    version='0.1.8',
     description='A package to establish an offline star catalog query database',
     author='Chunxiao Li',
     author_email='lcx366@126.com',
@@ -25,7 +25,6 @@ setup(
     include_package_data=True,
     install_requires=[
         'scipy',
-        'pyshtools',
         'astropy>=4.3.1',
         'pandas',
         'h5py',

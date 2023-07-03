@@ -1,8 +1,56 @@
 import os
 import numpy as np
 import pandas as pd
-import pyshtools as pysh
 from astropy.coordinates import SkyCoord
+
+def from_cap(theta,clat,clon,lmax):
+    """
+    Mask grid points using spherical cap.
+    Reference: https://github.com/SHTOOLS/SHTOOLS/blob/master/pyshtools/shclasses/shgrid.py
+
+    Usage:
+        >>> mask_cap = from_cap(theta,clat,clon,lmax])
+    Inputs:
+        theta -> [float] The angular radius of the spherical cap in [deg]
+        clat, clon -> [float] Latitude and longitude of the center of the spherical cap in [deg]
+        lmax -> [int] The maximum spherical harmonic degree resolvable by the grid
+    Outputs:
+        mask_cap -> [numpy array] Grid points with spherical cap masked 
+    """
+    step = 90/(lmax+1)
+    lats = np.deg2rad(np.arange(90,-90,-step))
+    lons = np.deg2rad(np.arange(0,360,step))
+    nlat,nlon = len(lats),len(lons)
+    array = np.zeros((nlat, nlon))
+
+    theta = np.deg2rad(theta)
+    clat = np.deg2rad(clat)
+    clon = np.deg2rad(clon)
+
+    # Set array equal to 1 within the cap
+    imin = np.inf
+    imax = 0
+    for i, lat in enumerate(lats):
+        if lat <= clat + theta:
+            if i <= imin: imin = i
+        if lat >= clat - theta:
+            if i >= imax: imax = i
+
+    x = np.cos(clat) * np.cos(clon)
+    y = np.cos(clat) * np.sin(clon)
+    z = np.sin(clat)
+
+    coslon = np.cos(lons)
+    sinlon = np.sin(lons)
+    costheta = np.cos(theta)
+
+    for i in range(imin, imax+1):
+        coslat = np.cos(lats[i])
+        sinlat = np.sin(lats[i])
+        for j in range(0, nlon):
+            dist = coslat * (x * coslon[j] + y * sinlon[j]) + z * sinlat
+            if dist >= costheta: array[i, j] = 1
+    return array
 
 def seq2radec(seq,tile_size):
     """
@@ -95,8 +143,8 @@ def cone2seqs(ra_c,dec_c,radius,tile_size):
     N = int(180/tile_size)
     if N%2: raise Exception('tile_size must satisfy the condition that 180/tile_size is even.')
     L = int(N/2) - 1
-    mask_circle = pysh.SHGrid.from_cap(radius, dec_c, ra_c, L,extend=False)
-    dec_index,ra_index = np.where(mask_circle.data)
+    mask_cap = from_cap(radius, dec_c, ra_c, L)
+    dec_index,ra_index = np.where(mask_cap)
     seqs = dec_index * count_lon + ra_index
     return seqs    
 
