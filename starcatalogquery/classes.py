@@ -52,7 +52,7 @@ class StarCatalog(object):
 
         stars_num,mag,description = starcatalog_info(sc_name)
         dict_values = dir_to,dir_size,file_num,validity,sc_name,'{:d} deg'.format(tile_size),'raw',stars_num,mag,description
-        dict_keys = 'tiles_path','sc_size','tiles_num','validity','sc_name','tile_size','_mode','stars_num','mag','description'
+        dict_keys = 'tiles_dir','sc_size','tiles_num','validity','sc_name','tile_size','_mode','stars_num','mag','description'
         info = dict(zip(dict_keys, dict_values))
 
         return StarCatalogRaw(info)  
@@ -134,11 +134,11 @@ class StarCatalogRaw(object):
     Class StarCatalogRaw
 
     Attributes:
-        - tiles_path: Path of the star catalog files. 
-        - tiles_num: Total number of the tile files.
+        - tiles_dir: Directory of the star catalog files
+        - tiles_num: Total number of the tile files
         - tile_size: Geometric size of the tile in [deg]
-        - sc_size: File size of the star catalog.
-        - validity: Validity of the star catalog.
+        - sc_size: File size of the star catalog
+        - validity: Validity of the star catalog
         - sc_name: Name of the star catalog. Available options include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
         - _mode: Type of the star catalog. Available options include 'raw', 'reduced', 'simplified', where
             'raw' represents the original star catalog, which covers all information about the stars,
@@ -189,7 +189,7 @@ class StarCatalogRaw(object):
         stars_num,mag,description = starcatalog_info(sc_name)
 
         dict_values = dir_from,dir_size,file_num,validity,sc_name,'{:d} deg'.format(tile_size),'raw',stars_num,mag,description
-        dict_keys = 'tiles_path','sc_size','tiles_num','validity','sc_name','tile_size','_mode','stars_num','mag','description'
+        dict_keys = 'tiles_dir','sc_size','tiles_num','validity','sc_name','tile_size','_mode','stars_num','mag','description'
         info = dict(zip(dict_keys, dict_values))
 
         return StarCatalogRaw(info) 
@@ -210,12 +210,12 @@ class StarCatalogRaw(object):
         """
         info = self.info.copy()
         tile_size = int(self.tile_size.split(' ')[0])
-        tiles_path = self.tiles_path
+        tiles_dir = self.tiles_dir
         if dir_reduced is None:
-            dir_reduced = tiles_path.replace('raw','reduced')
+            dir_reduced = tiles_dir.replace('raw','reduced')
         Path(dir_reduced).mkdir(parents=True, exist_ok=True)    
 
-        file_list = glob(tiles_path+'*') 
+        file_list = glob(tiles_dir+'*') 
         sc_name = self.sc_name
         print('Reducing the star catalog {:s}, which may take a considerable amount of time'.format(sc_name))  
 
@@ -304,7 +304,7 @@ class StarCatalogRaw(object):
                     
         file_num,dir_size,validity = tiles_statistic(dir_reduced,tile_size)  
         info['_mode'] = 'reduced'
-        info['tiles_path'] = dir_reduced
+        info['tiles_dir'] = dir_reduced
         info['sc_size'] = dir_size
 
         return StarCatalogReduced(info)  
@@ -332,7 +332,7 @@ class StarCatalogRaw(object):
         """
         ra_min,dec_min,ra_max,dec_max = radec_box
         tile_size = int(self.tile_size.split()[0])
-        sc_path,sc_name = self.tiles_path,self.sc_name
+        sc_path,sc_name = self.tiles_dir,self.sc_name
         sc_indices = box2seqs(radec_box,tile_size) 
 
         df = pd.concat(_load_files(sc_indices,sc_path,sc_name,self._mode))
@@ -413,7 +413,7 @@ class StarCatalogRaw(object):
         """
         ra_c,dec_c = center
         tile_size = int(self.tile_size.split()[0])
-        sc_path,sc_name = self.tiles_path,self.sc_name
+        sc_path,sc_name = self.tiles_dir,self.sc_name
         sc_indices = cone2seqs(ra_c,dec_c,radius,tile_size) 
 
         df = pd.concat(_load_files(sc_indices,sc_path,sc_name,self._mode))
@@ -505,7 +505,7 @@ class StarCatalogReduced(object):
     Class StarCatalogReduced
 
     Attributes:
-        - tiles_path: Path of the star catalog files. 
+        - tiles_dir: Directory of the star catalog files. 
         - tiles_num: Total number of the tile files.
         - tile_size: Geometric size of the tile in [deg]
         - sc_size: File size of the star catalog.
@@ -560,7 +560,7 @@ class StarCatalogReduced(object):
         stars_num,mag,description = starcatalog_info(sc_name)
 
         dict_values = dir_from,dir_size,file_num,validity,sc_name,'{:d} deg'.format(tile_size),'reduced',stars_num,mag,description
-        dict_keys = 'tiles_path','sc_size','tiles_num','validity','sc_name','tile_size','_mode','stars_num','mag','description'
+        dict_keys = 'tiles_dir','sc_size','tiles_num','validity','sc_name','tile_size','_mode','stars_num','mag','description'
         info = dict(zip(dict_keys, dict_values))
 
         return StarCatalogReduced(info)  
@@ -584,12 +584,12 @@ class StarCatalogReduced(object):
         """
         info = self.info.copy()
         tile_size = int(self.tile_size.split(' ')[0])
-        tiles_path = self.tiles_path
+        tiles_dir = self.tiles_dir
         if dir_simplified is None:
-            dir_simplified = tiles_path.replace('reduced','simplified')+'mag{:.1f}/epoch{:.1f}/'.format(mag_threshold,t_pm)
+            dir_simplified = tiles_dir.replace('reduced','simplified')+'mag{:.1f}/epoch{:.1f}/'.format(mag_threshold,t_pm)
         Path(dir_simplified).mkdir(parents=True, exist_ok=True)    
 
-        file_list = glob(tiles_path+'*') 
+        file_list = glob(tiles_dir+'*') 
         sc_name = self.sc_name
         print('Simplifying the star catalog {:s}, which may take a considerable amount of time'.format(sc_name))  
 
@@ -628,7 +628,7 @@ class StarCatalogReduced(object):
 
         file_num,dir_size,validity = tiles_statistic(dir_simplified,tile_size)  
         info['_mode'] = 'simplified'
-        info['tiles_path'] = dir_simplified
+        info['tiles_dir'] = dir_simplified
         info['sc_size'] = dir_size
         info['mag_threshold'] = mag_threshold
         info['epoch'] = t_pm
@@ -658,7 +658,7 @@ class StarCatalogReduced(object):
             Instance of class Stars
         """
         width = int(self.tile_size.split()[0])
-        df = search_box_magpm(radec_box,self.tiles_path,self.sc_name,width,self._mode,mag_threshold,t_pm)
+        df = search_box_magpm(radec_box,self.tiles_dir,self.sc_name,width,self._mode,mag_threshold,t_pm)
         info = df2info(self.sc_name,center,df,max_num) 
         return Stars(info)
 
@@ -684,7 +684,7 @@ class StarCatalogReduced(object):
             Instance of class Stars
         """
         width = int(self.tile_size.split()[0])
-        df = search_cone_magpm(center,radius,self.tiles_path,self.sc_name,width,self._mode,mag_threshold,t_pm)
+        df = search_cone_magpm(center,radius,self.tiles_dir,self.sc_name,width,self._mode,mag_threshold,t_pm)
         info = df2info(self.sc_name,center,df,max_num) 
         return Stars(info)
 
@@ -721,7 +721,7 @@ class StarCatalogSimplified(object):
     Class StarCatalogSimplified
 
     Attributes:
-        - tiles_path: Path of the star catalog files. 
+        - tiles_dir: Directory of the star catalog files. 
         - tiles_num: Total number of the tile files.
         - tile_size: Geometric size of the tile in [deg]
         - sc_size: File size of the star catalog.
@@ -778,7 +778,7 @@ class StarCatalogSimplified(object):
         stars_num,mag,description = starcatalog_info(sc_name)
 
         dict_values = dir_from,dir_size,file_num,validity,sc_name,'{:d} deg'.format(tile_size),'simplified',stars_num,mag,description,mag_threshold,epoch
-        dict_keys = 'tiles_path','sc_size','tiles_num','validity','sc_name','tile_size','_mode','stars_num','mag','description','mag_threshold','epoch'
+        dict_keys = 'tiles_dir','sc_size','tiles_num','validity','sc_name','tile_size','_mode','stars_num','mag','description','mag_threshold','epoch'
         info = dict(zip(dict_keys, dict_values))
 
         return StarCatalogSimplified(info)   
@@ -804,7 +804,7 @@ class StarCatalogSimplified(object):
             Instance of class Stars
         """
         width = int(self.tile_size.split()[0])
-        df = search_box(radec_box,self.tiles_path,self.sc_name,width,self._mode) 
+        df = search_box(radec_box,self.tiles_dir,self.sc_name,width,self._mode) 
         info = df2info(self.sc_name,center,df,max_num) 
         return Stars(info)
 
@@ -828,7 +828,7 @@ class StarCatalogSimplified(object):
             Instance of class Stars
         """
         width = int(self.tile_size.split()[0])
-        df = search_cone(center,radius,self.tiles_path,self.sc_name,width,self._mode)
+        df = search_cone(center,radius,self.tiles_dir,self.sc_name,width,self._mode)
         info = df2info(self.sc_name,center,df,max_num) 
         return Stars(info)
 

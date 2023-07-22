@@ -31,31 +31,31 @@ SPACE TELESCOPES](https://archive.stsci.edu)) , and build an offline star catalo
 
 ```python
 >>> from starcatalogquery import StarCatalog
->>> # Get the star catalog HYGv3.5 with the tile size of 2 deg
->>> hygv35_raw = StarCatalog.get('hygv35',2)
+>>> # Get the star catalog HYGv3.5 with the tile size of 5 deg
+>>> hygv35_raw = StarCatalog.get('hygv35',5)
 ```
 
 We get an instance of class StarCatalogRaw with
 
     Attributes:
-        - tiles_path: Path of the starcatalog tile files. 
-        - sc_size: The size of the star catalog.
-        - tiles_num: Total number of the tile files.
-        - validity: The validity of the star catalog.
-        - sc_name: Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
-        - tile_size: Size of the tile in [deg]
-        - _mode: Types of star catalogs, including 'raw', 'reduced', 'simplified', where
-            'raw' represents the original star catalog, which contains all information about the star
-            'reduced' represents the reduced star catalog, which contains the position, proper motion, apparent magnitude, epoch of the star
-            'simplified' represents the minimalist star catalog, which only includes the position and apparent magnitude of stars
+        - tiles_dir: Directory of the star catalog files
+        - tiles_num: Total number of the tile files
+        - tile_size: Geometric size of the tile in [deg]
+        - sc_size: File size of the star catalog
+        - validity: Validity of the star catalog
+        - sc_name: Name of the star catalog. Available options include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        - _mode: Type of the star catalog. Available options include 'raw', 'reduced', 'simplified', where
+            'raw' represents the original star catalog, which covers all information about the stars,
+            'reduced' represents the reduced star catalog, which contains the position, proper motion, apparent magnitude, epoch of the stars,
+            'simplified' represents the minimalist star catalog, which only includes the position and apparent magnitude of the stars at a specific epoch.
         - stars_num: Total number of stars in the catalog
-        - mag: Apparent magnitude of stars in the catalog
+        - mag: Range of apparent magnitudes for the catalog
         - description: Catalog Summary
     Methods:
         - load: Load the raw star catalog files from the local database.
-        - reduce: Reduce the original star catalog so that the reduced star catalog only contains necessary information such as the position, proper motion, apparent magnitude, epoch, etc.
-        - search_box: Perform a rectangle search of stars on the raw star catalog and return an instance of class Stars.
-        - search_cone: Perform a cone search of stars on the raw star catalog and return an instance of class Stars.   
+        - reduce: Reduce the raw star catalog so that it only contains necessary information of stars such as the celestial position, proper motion, apparent magnitude, and epoch, etc.
+        - search_box: Perform a rectangle search on the raw star catalog.
+        - search_cone: Perform a cone search on the raw star catalog.
         - _search_draw: Visualize the scope of the search area and the coverage of the corresponding tiles.  
 
 ### Reduce the raw star catalogs
