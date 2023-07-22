@@ -31,8 +31,8 @@ SPACE TELESCOPES](https://archive.stsci.edu)) , and build an offline star catalo
 
 ```python
 >>> from starcatalogquery import StarCatalog
->>> # Get the star catalog GAIADR3 with the tile size of 2 deg
->>> gaiadr3_raw = StarCatalog.get('gaiadr3',2)
+>>> # Get the star catalog HYGv3.5 with the tile size of 2 deg
+>>> hygv35_raw = StarCatalog.get('hygv35',2)
 ```
 
 We get an instance of class StarCatalogRaw with
@@ -63,7 +63,7 @@ We get an instance of class StarCatalogRaw with
 The original star catalog contains all the catalog information of the stars, which takes up a huge storage space and slows down the speed of star query. Therefore, we need to extract the necessary information of stars from it, and use the method `.reduce()` to build a reduced star catalog database.
 
 ```python
->>> gaiadr3_reduced = gaiadr3_raw.reduce()
+>>> hygv35_reduced = hygv35_raw.reduce()
 ```
 
 The reduced star catalog only contains the celestial position, proper motion, apparent magnitude, and epoch of stars.
@@ -73,8 +73,8 @@ The reduced star catalog only contains the celestial position, proper motion, ap
 In order to further reduce the size of the star catalog and improve its query efficiency, we filter out the reduced star catalog according to the limit magnitude of the detector, and make proper motion corrections to obtain a minimalist star catalog.
 
 ```python
->>> mag_threshold, t_pm = 9.0,2022.0 
->>> gaiadr3_simplified = gaiadr3_reduced.simplify(mag_threshold,t_pm)
+>>> mag_threshold,t_pm = 9.0,2022.0 
+>>> hygv35_simplified = hygv35_reduced.simplify(mag_threshold,t_pm)
 ```
 
 The simplified(minimalist) star catalog only includes the celetial position and apparent magnitude of stars at a specific epoch.
@@ -87,11 +87,11 @@ Perform a cone search of stars on the raw or reduced star catalog.
 >>> # Set center pointing in format of [Ra,Dec] in [deg] and search radius in [deg]
 >>> center,radius = [20,30],15 
 >>> # Set cutoff magnitude and observation epoch
->>> mag_threshold,t_pm = 8.0,2023.5
+>>> mag_threshold,t_pm = 9.0,2022.0
 >>> # Set the maximum number of brightest stars to output
 >>> max_control_points = 100 # optinal, default = None
->>> gaiadr3_raw_stars = gaiadr3_raw.search_cone(center,radius,mag_threshold,t_pm,max_control_points)
->>> gaiadr3_reduced_stars = gaiadr3_reduced.search_cone(center,radius,mag_threshold,t_pm,max_control_points)
+>>> hygv35_raw_stars = hygv35_raw.search_cone(center,radius,mag_threshold,t_pm,max_control_points)
+>>> hygv35_reduced_stars = hygv35_reduced.search_cone(center,radius,mag_threshold,t_pm,max_control_points)
 ```
 
 Perform a rectangle search of stars on the raw or reduced star catalog.
@@ -100,18 +100,18 @@ Perform a rectangle search of stars on the raw or reduced star catalog.
 >>> # Set a rectangular search area in format of [ra_min,dec_min,ra_max,dec_max] in [deg]
 >>> radec_box = [5,15,35,45]
 >>> # Set cutoff magnitude and observation epoch
->>> mag_threshold,t_pm = 8.0,2023.5
+>>> mag_threshold,t_pm = 9.0,2022.0
 >>> # Set the maximum number of brightest stars to output
 >>> max_control_points = 100 # optinal, default = None
->>> gaiadr3_raw_stars = gaiadr3_raw.search_box(radec_box,mag_threshold,t_pm,max_control_points)
->>> gaiadr3_reduced_stars = gaiadr3_reduced.search_box(radec_box,mag_threshold,t_pm,max_control_points)
+>>> hygv35_raw_stars = hygv35_raw.search_box(radec_box,mag_threshold,t_pm,max_control_points)
+>>> hygv35_reduced_stars = hygv35_reduced.search_box(radec_box,mag_threshold,t_pm,max_control_points)
 ```
 
 Perform a cone/rectangle search of stars on the simplified star catalog.
 
 ```python
->>> gaiadr3_simplified_stars = gaiadr3_simplified.search_cone(center,radius,max_control_points)
->>> gaiadr3_simplified_stars = gaiadr3_simplified.search_box(radec_box,max_control_points)
+>>> hygv35_simplified_stars = hygv35_simplified.search_cone(center,radius,max_control_points)
+>>> hygv35_simplified_stars = hygv35_simplified.search_box(radec_box,max_control_points)
 ```
 
 We get an instance of class Stars, with
@@ -131,15 +131,16 @@ Given the pixel width of the detector, calculate the pixel coordinates of the fi
 
 ```python
 >>> pixel_width = 0.01 # pixel width in [deg]
->>> gaiadr3_simplified_stars.pixel_xy(0.01)
->>> print(gaiadr3_simplified_stars.xy)
+>>> hygv35_simplified_stars.pixel_xy(0.01)
+>>> print(hygv35_simplified_stars.xy)
 ```
 
 ### Calculate the triangle invariants and the asterism indices of the filtered stars
 
 ```python
->>> gaiadr3_simplified_stars.invariantfeatures()
->>> print(gaiadr3_simplified_stars.invariants,gaiadr3_simplified_stars.asterisms,.kdtree)
+>>> hygv35_simplified_stars.invariantfeatures()
+>>> hygv35_simplified_stars.invariantfeatures()
+>>> print(hygv35_simplified_stars.invariants,hygv35_simplified_stars.asterisms,.kdtree)
 ```
 
 ### Visualization
@@ -149,9 +150,9 @@ Visualize the scope of the search area and the coverage of the corresponding cat
 ```python
 >>> box_area = {'box':[5,15,35,45]} # {'box':[ra_min,dec_min,ra_max,dec_max]}
 >>> cone_area = {'cone':[20,30,15]} # {'cone':[ra_c,dec_c,radius]}
->>> gaiadr3_simplified._search_draw(box_area)
->>> gaiadr3_simplified._search_draw(cone_area)
->>> # ._search_draw is also available for gaiadr3_raw and gaiadr3_reduced
+>>> hygv35_simplified._search_draw(box_area)
+>>> hygv35_simplified._search_draw(cone_area)
+>>> # ._search_draw is also available for hygv35_raw and hygv35_reduced
 ```
 
 <p align="middle">
@@ -162,9 +163,9 @@ Visualize the scope of the search area and the coverage of the corresponding cat
   <img src="readme_figs/cone.png" width="500" />
 </p>
 
-### Divide the sky
+### Divide the sky into multiple equal-area sky regions
 
-The celestial sphere can be divided into multiple equal-area sky regions using the HEALPix algorithm. Then a feature library is established in each sky area for blind matching of star maps. 
+For blind matching of star maps, the celestial sphere is pre-divided into multiple equal-area sky regions using the HEALPix algorithm.
 
 <p align="middle">
   <img src="readme_figs/healpix_list.png" width="400" />
@@ -174,24 +175,26 @@ The celestial sphere can be divided into multiple equal-area sky regions using t
   <img src="readme_figs/healpix_table.png" width="400" />
 </p>
 
-By default, we adopt the following strategy to divide the sky area:
+By default, the following strategy is adopted to divide the sky area:
 
-- For FOV > 43, k = 0, radius of cone search = 34; 
+- For 58.6 > FOV >= 28.4, k = 0, radius of cone search = 37.2; 
 
-- For FOV > 22, k = 1, radius of cone search = 17;
+- For 28.4 > FOV >= 13.4, k = 1, radius of cone search = 17.0;
 
-- Else, k = 2, radius of cone search = 9
+- For 13.4 > FOV >= 6.6, k = 2, radius of cone search = 8.3;
+
+- For 6.6 > FOV >= 3.3, k = 3, radius of cone search = 4.1;
 
 ```python
->>> fov,pixel_width = 20,0.01 # in [deg]
+>>> fov,pixel_width = 8,0.01 # in [deg]
 >>> # Set the maximum number of brightest stars in earch sky area
->>> max_control_points = 40 # optional, default = 60
->>> outh5 = gaiadr3_simplified.h5_incices(fov,pixel_width,max_control_points)
+>>> max_control_points = 30 
+>>> outh5 = hygv35_simplified.h5_incices(fov,pixel_width,max_control_points)
 ```
 
-A h5-formatted star catalog file `outh5`is generated, which records the center pointing of each sky area, the pixel coordinates, the triangle invariants and the asterism indices of the stars.
+A h5-formatted star catalog indices file is generated, which records the center pointing, pixel coordinates of the stars, triangle invariants and asterism indices of each sky area.
 
-### Read in h5-formatted star catalog file
+### Read and parse the h5-formatted star catalog indices file
 
 ```python
 >>> from starcatalogquery import StarCatalog
@@ -205,9 +208,9 @@ A h5-formatted star catalog file `outh5`is generated, which records the center p
 
 ```python
 >>> from starcatalogquery import StarCatalog
->>> dir_from_raw = '/Volumes/TOSHIBA/starcatalogs/raw/hygv35/res2/' # Path of the raw starcatalog
+>>> dir_from_raw = '/Volumes/TOSHIBA/starcatalogs/raw/hygv35/res5/' # Path of the raw starcatalog
 >>> hygv35_raw = StarCatalog.load(dir_from_raw)
->>> # dir_from_reduced = '/Volumes/TOSHIBA/starcatalogs/reduced/hygv35/res2/' # Path of the reduced starcatalog
+>>> # dir_from_reduced = '/Volumes/TOSHIBA/starcatalogs/reduced/hygv35/res5/' # Path of the reduced starcatalog
 >>> # hygv35_reduced = StarCatalog.load(dir_from_reduced)
 ```
 
@@ -215,11 +218,15 @@ A h5-formatted star catalog file `outh5`is generated, which records the center p
 
 ```python
 >>> from starcatalogquery import StarCatalog
->>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalogs/simplified/hygv35/res5/mag8.0/epoch2023.0/' # Path of the starcatalog
+>>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalogs/simplified/hygv35/res5/mag9.0/epoch2022.0/' # Path of the starcatalog
 >>> hygv35_simplified = StarCatalog.load(dir_from_simplified)
 ```
 
 ## Change log
+
+- **0.1.9 — Jul 22, 2023**
+  
+  - Adjusted the strategy for dividing the celestial sphere into multiple equal-area sky regions using the HEALPix algorithm, as well as the corresponding radius of cone search used for blind matching of star maps.
 
 - **0.1.8 — Jul 03, 2023**
   

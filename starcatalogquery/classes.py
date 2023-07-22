@@ -22,17 +22,15 @@ class StarCatalog(object):
 
     def get(sc_name,tile_size=None,dir_to=None):
         """
-        Grab star catalog data files from a remote server.
+        Grab star catalog data files from remote servers.
 
         Usage:
             >>> from starcatalogquery import StarCatalog
-            >>> gaiadr3_raw = StarCatalog.get('gaiadr3',2)
-
+            >>> hygv35_raw = StarCatalog.get('hygv35',5)
         Inputs:
-            sc_name -> [str] Name of the starcatalog to download. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
-            tile_size -> [int,optinal,default=None] size of the tile in [deg]. If None, the size of the tile is automatically assigned a feasible maximum according to the name of the star catalog.
-            dir_to -> [str,optional,default=None] The download path of the star catalog files. If None, the path is automatically assigned to a suitable directory by default.
-
+            sc_name -> [str] Name of the star catalog. Available options include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+            tile_size -> [int,optinal,default=None] Geometric size of the tile in [deg]. If None, it is assigned an allowed maximum automatically based on the star catalog.
+            dir_to -> [str,optional,default=None] Path of the star catalog files grabbed. If None, the it is assigned to a build-in directory by default.
         Outputs:
             Instance of class StarCatalogRaw
         """
@@ -65,59 +63,57 @@ class StarCatalog(object):
 
         Usage:
             >>> from starcatalogquery import StarCatalog
-            >>> # load the raw star catalog GAIADR3
-            >>> dir_from_raw = '/Volumes/TOSHIBA/starcatalog/raw/gaiadr3/res2/'
-            >>> gaiadr3_raw = StarCatalog.load(dir_from_raw)
+            >>> # load the raw star catalog HYGv3.5
+            >>> dir_from_raw = '/Volumes/TOSHIBA/starcatalogs/raw/hygv35/res5/'
+            >>> hygv35_raw = StarCatalog.load(dir_from_raw)
             >>>
-            >>> # load the reduced star catalog GAIADR3
-            >>> dir_from_reduced = '/Volumes/TOSHIBA/starcatalog/reduced/gaiadr3/res2/'
-            >>> gaiadr3_reduced = StarCatalog.load(dir_from_reduced)
+            >>> # load the reduced star catalog HYGv3.5
+            >>> dir_from_reduced = '/Volumes/TOSHIBA/starcatalogs/reduced/hygv35/res5/'
+            >>> hygv35_reduced = StarCatalog.load(dir_from_reduced)
             >>>
-            >>> # load the simplified star catalog GAIADR3
-            >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalog/simplified/gaiadr3/res2/mag8.0/epoch2023.0/'
-            >>> gaiadr3_simplified = StarCatalog.load(dir_from_simplified)
+            >>> # load the simplified star catalog HYGv3.5
+            >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalogs/simplified/hygv35/res5/mag9.0/epoch2022.0/'
+            >>> hygv35_simplified = StarCatalog.load(dir_from_simplified)
         Inputs:
-            dir_from -> [str,optional,default=None] The loading path of the star catalog files. If None, the path is automatically assigned to a suitable directory by default.
+            dir_from -> [str,optional,default=None] Directory of the star catalog files. If None, it is assigned to a build-in directory by default.
         Outputs:
             Instance of class StarCatalog
         """
         _mode,sc_name,tile_size = dir_from.split('starcatalogs/')[1].split('/')[:3]
         tile_size = int(tile_size[3:])
 
-        # _mode -> [str] Types of star catalogs, including 'raw', 'reduced', 'simplified', where
-        # 'raw' represents the original star catalog, which contains all information about the star
-        # 'reduced' represents the reduced star catalog, which contains the position, proper motion, apparent magnitude, epoch of the star
-        # 'simplified' represents the minimalist star catalog, which only includes the position and apparent magnitude of stars at a specific epoch
-        # sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
-        # tile_size -> [int] Size of the tile in [deg]
+        # _mode -> [str] Type of the star catalog. Available options include 'raw', 'reduced', 'simplified', where
+        # 'raw' represents the original star catalog, which covers all information about the stars,
+        # 'reduced' represents the reduced star catalog, which contains the position, proper motion, apparent magnitude, epoch of the stars,
+        # 'simplified' represents the minimalist star catalog, which only includes the position and apparent magnitude of the stars at a specific epoch.
+        # sc_name -> [str] Name of the star catalog. Available options include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        # tile_size -> [int] Geometric size of the tile in [deg]
 
         if _mode == 'raw':
             starcatalog = StarCatalogRaw.load(sc_name,tile_size,dir_from)
         elif _mode == 'reduced':
             starcatalog = StarCatalogReduced.load(sc_name,tile_size,dir_from)
         elif _mode == 'simplified':    
-            mag_cutoff,epoch = np.array(dir_from.split('mag')[1][:-1].split('/epoch'),dtype=float) 
-            starcatalog = StarCatalogSimplified.load(sc_name,tile_size,mag_cutoff,epoch,dir_from)
+            mag_threshold,epoch = np.array(dir_from.split('mag')[1][:-1].split('/epoch'),dtype=float) 
+            starcatalog = StarCatalogSimplified.load(sc_name,tile_size,mag_threshold,epoch,dir_from)
 
         return starcatalog 
 
     def read_h5_indices(infile):
         """
-        Read in h5-formatted star catalog file, which records the center pointing of each sky area, the pixel coordinates of the stars, the triangle invariants and the asterism indices.
+        Read and parse the h5-formatted star catalog indicea file, which records the center pointing, pixel coordinates of the stars, triangle invariants and asterism indices of each sky area.
 
         Usage:
             >>> from starcatalogquery import StarCatalog
-            >>> infile_h5 = 'starcatalogs/indices/hygv35/fov20_mag8_mcp40_2023.0.h5'
+            >>> infile_h5 = 'starcatalogs/indices/hygv35/k2_mag9.0_mcp30_2022.0.h5'
             >>> fp_radecs,stars_xy,stars_invariants,stars_asterisms = read_h5_indices(infile_h5)
-        
         Inputs:
-            infile_h5 -> [str] h5-formatted star catalog file  
-
+            infile_h5 -> [str] h5-formatted star catalog indices file  
         Outputs:
-            fp_radecs -> [2d array of float] The center pointing of each sky area in format of [[RA0,DEC0],..[RAn,DECn]] in [deg]
-            stars_xy -> [list of 2d array of float] The pixel coordinates of the stars in each sky area
-            stars_invariants -> [list of 2d array of float] The triangle invariants in each sky area
-            stars_asterisms -> [list of 2d array of int] The asterism indices corresponding to the triangle invariants in each sky area       
+            fp_radecs -> [2d array of float] Center pointing of each sky area in form of [[RA0,DEC0],..[RAn,DECn]] in [deg]
+            stars_xy -> [list of 2d array] Pixel coordinates of stars in each sky area
+            stars_invariants -> [list of 2d array] Triangle invariants in each sky area
+            stars_asterisms -> [list of 2d array] Asterism indices corresponding to the triangle invariants in each sky area       
         """
         fin = h5py.File(infile,'r')
 
@@ -138,25 +134,24 @@ class StarCatalogRaw(object):
     Class StarCatalogRaw
 
     Attributes:
-        - tiles_path: Path of the starcatalog tile files. 
-        - sc_size: The size of the star catalog.
+        - tiles_path: Path of the star catalog files. 
         - tiles_num: Total number of the tile files.
-        - validity: The validity of the star catalog.
-        - sc_name: Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
-        - tile_size: Size of the tile in [deg]
-        - _mode: Types of star catalogs, including 'raw', 'reduced', 'simplified', where
-            'raw' represents the original star catalog, which contains all information about the star
-            'reduced' represents the reduced star catalog, which contains the position, proper motion, apparent magnitude, epoch of the star
-            'simplified' represents the minimalist star catalog, which only includes the position and apparent magnitude of stars
+        - tile_size: Geometric size of the tile in [deg]
+        - sc_size: File size of the star catalog.
+        - validity: Validity of the star catalog.
+        - sc_name: Name of the star catalog. Available options include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        - _mode: Type of the star catalog. Available options include 'raw', 'reduced', 'simplified', where
+            'raw' represents the original star catalog, which covers all information about the stars,
+            'reduced' represents the reduced star catalog, which contains the position, proper motion, apparent magnitude, epoch of the stars,
+            'simplified' represents the minimalist star catalog, which only includes the position and apparent magnitude of the stars at a specific epoch.
         - stars_num: Total number of stars in the catalog
-        - mag: Apparent magnitude of stars in the catalog
+        - mag: Range of apparent magnitudes for the catalog
         - description: Catalog Summary
-
     Methods:
         - load: Load the raw star catalog files from the local database.
-        - reduce: Reduce the original star catalog so that the reduced star catalog only contains necessary information such as the position, proper motion, apparent magnitude, epoch, etc.
-        - search_box: Perform a rectangle search of stars on the raw star catalog and return an instance of class Stars.
-        - search_cone: Perform a cone search of stars on the raw star catalog and return an instance of class Stars.   
+        - reduce: Reduce the raw star catalog so that it only contains necessary information of stars such as the celestial position, proper motion, apparent magnitude, and epoch, etc.
+        - search_box: Perform a rectangle search on the raw star catalog.
+        - search_cone: Perform a cone search on the raw star catalog.
         - _search_draw: Visualize the scope of the search area and the coverage of the corresponding tiles.    
     """   
     def __init__(self,info):  
@@ -176,15 +171,13 @@ class StarCatalogRaw(object):
 
         Usage:
             >>> from starcatalogquery import StarCatalogRaw
-            >>> # load the raw star catalog GAIADR3
-            >>> dir_from_raw = '/Volumes/TOSHIBA/starcatalog/raw/gaiadr3/res2/'
-            >>> gaiadr3_raw = StarCatalogRaw.load('raw','gaiadr3',2,dir_from_raw)
-
+            >>> # load the raw star catalog HYGv3.5
+            >>> dir_from_raw = '/Volumes/TOSHIBA/starcatalogs/raw/hygv35/res5/'
+            >>> hygv35_raw = StarCatalogRaw.load('hygv35',5,dir_from_raw)
         Inputs:
-            sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
-            tile_size -> [int] Size of the tile in [deg]
-            dir_from -> [str,optional,default=None] The loading path of the star catalog files. If None, the path is automatically assigned to a suitable directory by default.
-
+            sc_name -> [str] Name of the star catalog. Available options include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+            tile_size -> [int] Geometric size of the tile in [deg]
+            dir_from -> [str,optional,default=None] Directory of the star catalog files. If None, it is assigned to a build-in directory by default.
         Outputs:
             Instance of class StarCatalogRaw
         """
@@ -203,17 +196,15 @@ class StarCatalogRaw(object):
 
     def reduce(self,dir_reduced=None):
         """
-        Reduce the original star catalog so that the reduced star catalog only contains necessary information such as the position, proper motion, apparent magnitude, epoch, etc.
+        Reduce the raw star catalog so that it only contains necessary information of stars such as the celestial position, proper motion, apparent magnitude, and epoch, etc.
 
         Usage:
             >>> from starcatalogquery import StarCatalogRaw
-            >>> dir_from_raw = '/Volumes/TOSHIBA/starcatalog/raw/gaiadr3/res2/'
-            >>> gaiadr3_raw = StarCatalogRaw.load('raw','gaiadr3',2,dir_from_raw)
-            >>> gaiadr3_reduced = gaiadr3_raw.reduce()
-
+            >>> dir_from_raw = '/Volumes/TOSHIBA/starcatalogs/raw/hygv35/res5/'
+            >>> hygv35_raw = StarCatalogRaw.load('hygv35',5,dir_from_raw)
+            >>> hygv35_reduced = hygv35_raw.reduce()
         Inputs:
-            dir_reduced -> [str,optional,default=None] The path of the reduced star catalog files to store. If None, the path is automatically assigned to a suitable directory by default.
-
+            dir_reduced -> [str,optional,default=None] Directory of the reduced star catalog files. If None, it is assigned to a build-in directory by default.
         Outputs:
             Instance of class StarCatalogReduced       
         """
@@ -233,21 +224,18 @@ class StarCatalogRaw(object):
             for tile_file in file_list:
                 desc = 'Reducing {:s}{:d}{:s} of {:d}'.format(Fore.BLUE,j,Fore.RESET,self.tiles_num)
                 print(desc,end='\r')
-
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str)
                 # units: ra->hourangle, dec->deg, pmra->mas/a, pmdec->mas/a, epoch->2000.0 
                 df_reduced = df.loc[:,['ra','dec','pmra','pmdec','mag']]
                 df_reduced['epoch'] = '2000.0'
                 df_reduced['ra'] = (df_reduced['ra'].astype(float)*15).round(6) # Convert hourangle to deg
                 df_reduced.to_csv(tile_file.replace('raw','reduced'),index=False)
-
                 j += 1
         elif sc_name == 'gsc12':
             j = 1
             for tile_file in file_list:
                 desc = 'Reducing {:s}{:d}{:s} of {:d}'.format(Fore.BLUE,j,Fore.RESET,self.tiles_num)
                 print(desc,end='\r')
-
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str)
                 # units: ra->deg, dec->deg, RApm->arcs/0.1a, Decpm->arcs/0.1a, Epoch->1980.552
                 df_reduced = df.loc[:,['ra','dec','RApm','Decpm','mag','Epoch']]
@@ -257,21 +245,18 @@ class StarCatalogRaw(object):
                 df_reduced['pmra'] = (df_reduced['pmra'].astype(float)*1e4).round(2) 
                 df_reduced['pmdec'] = (df_reduced['pmdec'].astype(float)*1e4).round(2)
                 df_reduced.to_csv(tile_file.replace('raw','reduced'),index=False)
-
                 j += 1
         elif sc_name == 'gsc242':
             j = 1
             for tile_file in file_list:
                 desc = 'Reducing {:s}{:d}{:s} of {:d}'.format(Fore.BLUE,j,Fore.RESET,self.tiles_num)
                 print(desc,end='\r')
-
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str)
                 # units: ra->deg, dec->deg, rapm->mas/a, decpm->mas/a, epoch->2012
                 df_reduced = df.loc[:,['ra','dec','rapm','decpm','mag','epoch']]
                 columns_dict = {'rapm':'pmra', 'decpm':'pmdec'}
                 df_reduced.rename(columns=columns_dict, inplace=True)
                 df_reduced.to_csv(tile_file.replace('raw','reduced'),index=False)  
-
                 j += 1
         elif sc_name == 'gaiadr3':
             for tile_file in file_list:
@@ -284,41 +269,35 @@ class StarCatalogRaw(object):
             for tile_file in file_list:
                 desc = 'Reducing {:s}{:d}{:s} of {:d}'.format(Fore.BLUE,j,Fore.RESET,self.tiles_num)
                 print(desc,end='\r')
-
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str)
                 # units: ra->deg, dec->deg, pmur->mas/a, pmud->mas/a, epu->1998.754
                 df_reduced = df.loc[:,['ra','dec','pmur','pmud','mag','epu']]
                 columns_dict = {'pmur':'pmra', 'pmud':'pmdec','epu':'epoch'}
                 df_reduced.rename(columns=columns_dict, inplace=True)
                 df_reduced.to_csv(tile_file.replace('raw','reduced'),index=False)   
-
                 j += 1 
         elif sc_name == 'usnob':
             j = 1
             for tile_file in file_list:
                 desc = 'Reducing {:s}{:d}{:s} of {:d}'.format(Fore.BLUE,j,Fore.RESET,self.tiles_num)
                 print(desc,end='\r')
-
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str)
                 # units: ra->deg, dec->deg, pmRA->mas/a, pmDEC->mas/a, Epoch->1950,mag->unknown
                 df_reduced = df.loc[:,['ra','dec','pmRA','pmDEC','mag','Epoch']]
                 columns_dict = {'pmRA':'pmra', 'pmDEC':'pmdec','Epoch':'epoch'}
                 df_reduced.rename(columns=columns_dict, inplace=True)
                 df_reduced.to_csv(tile_file.replace('raw','reduced'),index=False)  
-
                 j += 1
         elif sc_name == '2mass':
             j = 1
             for tile_file in file_list:
                 desc = 'Reducing {:s}{:d}{:s} of {:d}'.format(Fore.BLUE,j,Fore.RESET,self.tiles_num)
                 print(desc,end='\r')
-
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str)
                 # units: ra->deg, dec->deg, jdate->2451063.6417
                 df_reduced = df.loc[:,['ra','dec','mag']]
                 df_reduced['epoch'] = Time(df['jdate'].astype(float), format='jd').jyear.round(2) 
                 df_reduced.to_csv(tile_file.replace('raw','reduced'),index=False)  
-
                 j += 1
 
         print('\nFinished')                                                   
@@ -330,26 +309,24 @@ class StarCatalogRaw(object):
 
         return StarCatalogReduced(info)  
     
-    def search_box(self,radec_box,mag_threshold,t_pm,max_control_points=None):
+    def search_box(self,radec_box,mag_threshold,t_pm,max_num=None):
         """
-        Perform a rectangle search of stars on the raw star catalog and return an instance of class Stars.
+        Perform a rectangle search of stars on raw star catalogs.
 
         Usage:
             >>> from starcatalogquery import StarCatalogRaw
-            >>> dir_from_raw = '/Volumes/TOSHIBA/starcatalog/raw/gaiadr3/res2/'
-            >>> gaiadr3_raw = StarCatalogRaw.load('raw','gaiadr3',2,dir_from_raw)
-            >>> stars = gaiadr3_raw.search_box([20,30,30,40],8,2023.0)
-
+            >>> dir_from_raw = '/Volumes/TOSHIBA/starcatalogs/raw/hygv35/res5/'
+            >>> hygv35_raw = StarCatalogRaw.load('hygv35',5,dir_from_raw)
+            >>> stars = hygv35_raw.search_box([20,30,30,40],9,2022.0)
         Inputs:
-            radec_box -> [int,array_like] Rectangular search area in format of [ra_min,dec_min,ra_max,dec_max], where
+            radec_box -> [list] Rectangular search area in form of [ra_min,dec_min,ra_max,dec_max], where
                 ra_min -> [float] Left border of RA in [deg].
                 dec_min -> [float] Lower border of DEC in [deg].
                 ra_max -> [float] Right border of RA in [deg].
                 dec_max -> [float] Upper border of DEC in [deg].
-            mag_threshold -> [float] Apparent magnitude limit of the detector  
-            t_pm -> [float] The epoch when the search was performed
-            max_control_points -> [int,optional,default=None] Number of brightest stars in the search area. If None, it is the number of all stars in the search area by deault.
-
+            mag_threshold -> [float] Apparent magnitude limit  
+            t_pm -> [float] Epoch to which the stars are unified
+            max_num -> [int,optional,default=None] Maxinum number of the stars sorted by brightness for rectangle search. If None, all stars are counted in the search area by deault.
         Outputs:
             Instance of class Stars
         """
@@ -393,7 +370,7 @@ class StarCatalogRaw(object):
         mag_flag = (df['mag'] < mag_threshold)
         df = df[mag_flag].sort_values(by=['mag'])
 
-        # calculate proper motion
+        # calculate the proper motion
         dt = float(t_pm) - df['epoch']
 
         if {'pmra', 'pmdec'}.issubset(df.columns):    
@@ -411,28 +388,26 @@ class StarCatalogRaw(object):
         df['epoch'] = t_pm
         df.reset_index(drop=True,inplace=True)
 
-        info = df2info(self.sc_name,center,df,max_control_points) 
+        info = df2info(self.sc_name,center,df,max_num) 
         return Stars(info)
 
-    def search_cone(self,center,radius,mag_threshold,t_pm,max_control_points=None):
+    def search_cone(self,center,radius,mag_threshold,t_pm,max_num=None):
         """
-        Perform a cone search of stars on the raw star catalog and return an instance of class Stars.
+        Perform a cone search of stars on raw star catalogs.
 
         Usage:
             >>> from starcatalogquery import StarCatalogRaw
-            >>> dir_from_raw = '/Volumes/TOSHIBA/starcatalog/raw/gaiadr3/res2/'
-            >>> gaiadr3_raw = StarCatalogRaw.load('raw','gaiadr3',2,dir_from_raw)
-            >>> stars = gaiadr3_raw.search_cone([20,30],10,8,2023.0)
-
+            >>> dir_from_raw = '/Volumes/TOSHIBA/starcatalogs/raw/hygv35/res5/'
+            >>> hygv35_raw = StarCatalogRaw.load('hygv35',5,dir_from_raw)
+            >>> stars = hygv35_raw.search_cone([20,30],10,9,2022.0)
         Inputs:
-            center -> [int,array_like] Center of the cap in format of [ra_c,dec_c], where
-                ra_c -> [float] RA, in [deg].
-                dec_c -> [float] DEC, in [deg].
-            radius -> [float] Angular radius of the cap, in [deg].
-            mag_threshold -> [float] Apparent magnitude limit of the detector  
-            t_pm -> [float] The epoch when the search was performed
-            max_control_points -> [int,optional,default=None] Number of brightest stars in the search area. If None, it is the number of all stars in the search area by deault.
-
+            center -> [list] Center of the cone in form of [ra_c,dec_c], where
+                ra_c -> [float] RA, in [deg]
+                dec_c -> [float] DEC, in [deg]
+            radius -> [float] Angular radius of the cone, in [deg]
+            mag_threshold -> [float] Apparent magnitude limit
+            t_pm -> [float] Epoch to which the stars are unified
+            max_num -> [int,optional,default=None] Maximum mumber of stars sorted by brightness for cone search. If None, all stars are counted in the search area by deault.
         Outputs:
             Instance of class Stars
         """
@@ -476,7 +451,7 @@ class StarCatalogRaw(object):
         mag_flag = (df['mag'] < mag_threshold)
         df = df[mag_flag].sort_values(by=['mag'])
 
-        # calculate proper motion
+        # calculate the proper motion
         dt = float(t_pm) - df['epoch']
 
         if {'pmra', 'pmdec'}.issubset(df.columns):    
@@ -495,7 +470,7 @@ class StarCatalogRaw(object):
         df['epoch'] = t_pm
         df.reset_index(drop=True,inplace=True)   
 
-        info = df2info(self.sc_name,center,df,max_control_points) 
+        info = df2info(self.sc_name,center,df,max_num) 
         return Stars(info)
 
     def _search_draw(self,search_area):
@@ -504,13 +479,12 @@ class StarCatalogRaw(object):
 
         Usage:
             >>> from starcatalogquery import StarCatalogRaw
-            >>> dir_from_raw = '/Volumes/TOSHIBA/starcatalog/raw/gaiadr3/res2/'
-            >>> gaiadr3_raw = StarCatalogRaw.load('raw','gaiadr3',2,dir_from_raw)
+            >>> dir_from_raw = '/Volumes/TOSHIBA/starcatalogs/raw/hygv35/res5/'
+            >>> hygv35_raw = StarCatalogRaw.load('hygv35',5,dir_from_raw)
             >>> cone_area = {'cone':[20,30,10]}
-            >>> stars = gaiadr3_raw._search_draw(cone_area)
-
+            >>> stars = hygv35_raw._search_draw(cone_area)
         Inputs:
-            search_area -> [dict] The scope of the search area, such as {'cone':[20,30,10]} or {'box':[20,30,30,40]}, where
+            search_area -> [dict] Scope of the search area, such as {'cone':[20,30,10]} or {'box':[20,30,30,40]}, where
             for {'box':[ra_min,dec_min,ra_max,dec_max]}:
                 ra_min -> [float] Left border of RA in [deg].
                 dec_min -> [float] Lower border of DEC in [deg].
@@ -520,9 +494,8 @@ class StarCatalogRaw(object):
                 ra_c -> [float] RA, in [deg].
                 dec_c -> [float] DEC, in [deg].
                 radius -> [float] Angular radius of the cap, in [deg].  
-
         Outputs:
-            An image that shows the scope of the search area and the coverage of the corresponding tiles.          
+            An image sketching the scope of the search area and the coverage of the corresponding tiles.          
         """
         tile_size = int(self.tile_size.split()[0]) 
         search_draw(tile_size,search_area)       
@@ -532,26 +505,25 @@ class StarCatalogReduced(object):
     Class StarCatalogReduced
 
     Attributes:
-        - tiles_path: Path of the starcatalog tile files. 
-        - sc_size: The size of the star catalog.
+        - tiles_path: Path of the star catalog files. 
         - tiles_num: Total number of the tile files.
-        - validity: The validity of the star catalog.
-        - sc_name: Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
-        - tile_size: Size of the tile in [deg]
-        - _mode: Types of star catalogs, including 'raw', 'reduced', 'simplified', where
-            'raw' represents the original star catalog, which contains all information about the star
-            'reduced' represents the reduced star catalog, which contains the position, proper motion, apparent magnitude, epoch of the star
-            'simplified' represents the minimalist star catalog, which only includes the position and apparent magnitude of stars
+        - tile_size: Geometric size of the tile in [deg]
+        - sc_size: File size of the star catalog.
+        - validity: Validity of the star catalog.
+        - sc_name: Name of the star catalog. Available options include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        - _mode: Type of the star catalog. Available options include 'raw', 'reduced', 'simplified', where
+            'raw' represents the original star catalog, which covers all information about the stars,
+            'reduced' represents the reduced star catalog, which contains the position, proper motion, apparent magnitude, epoch of the stars,
+            'simplified' represents the minimalist star catalog, which only includes the position and apparent magnitude of the stars at a specific epoch.
         - stars_num: Total number of stars in the catalog
-        - mag: Apparent magnitude of stars in the catalog
+        - mag: Range of apparent magnitudes for the catalog
         - description: Catalog Summary
-
     Methods:
         - load: Load the reduced star catalog files from the local database.
-        - simplify: Simplify the reduced star catalog so that the simplified star catalog only contains key information: the position and apparent magnitude of stars.
-        - search_box: Perform a rectangle search of stars on the reduced star catalog and return an instance of class Stars.
-        - search_cone: Perform a cone search of stars on the reduced star catalog and return an instance of class Stars.   
-        - _search_draw: Visualize the scope of the search area and the coverage of the corresponding tiles.  
+        - simplify: Simplify the reduced star catalog so that it only contains key information of the stars, such as the celetial position and apparent magnitude, etc.
+        - search_box: Perform a rectangle search on the reduced star catalog.
+        - search_cone: Perform a cone search on the reduced star catalog.
+        - _search_draw: Visualize the scope of the search area and the coverage of the corresponding tiles.
     """  
     def __init__(self,info):  
 
@@ -570,22 +542,20 @@ class StarCatalogReduced(object):
 
         Usage:
             >>> from starcatalogquery import StarCatalogReduced
-            >>> # load the reduced star catalog GAIADR3
-            >>> dir_from_reduced = '/Volumes/TOSHIBA/starcatalog/reduced/gaiadr3/res2/'
-            >>> gaiadr3_reduced = StarCatalogReduced.load('reduced','gaiadr3',2,dir_from_reduced)
-
+            >>> # load the reduced star catalog HYGv3.5
+            >>> dir_from_reduced = '/Volumes/TOSHIBA/starcatalogs/reduced/hygv35/res5/'
+            >>> hygv35_reduced = StarCatalogReduced.load('hygv35',5,dir_from_reduced)
         Inputs:
-            sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
-            tile_size -> [int] Size of the tile in [deg]
-            dir_from -> [str,optional,default=None] The loading path of the star catalog files. If None, the path is automatically assigned to a suitable directory by default.
-
+            sc_name -> [str] Name of the star catalog. Available options include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+            tile_size -> [int] Geometric size of the tile in [deg]
+            dir_from -> [str,optional,default=None] Directory of the star catalog files. If None, it is assigned to a build-in directory by default.
         Outputs:
             Instance of class StarCatalogReduced
         """
         if dir_from is None: dir_from = 'starcatalogs/reduced/{:s}/res{:d}/'.format(sc_name,tile_size)    
         if not os.path.exists(dir_from): raise Exception('Path of the star catalog {:s} does not exist.'.format(sc_name))  
 
-        # calculate total size and numbers of tile files    
+        # calculate the total file size and numbers of tile files    
         file_num,dir_size,validity = tiles_statistic(dir_from,tile_size) 
         stars_num,mag,description = starcatalog_info(sc_name)
 
@@ -597,20 +567,18 @@ class StarCatalogReduced(object):
 
     def simplify(self,mag_threshold,t_pm,dir_simplified=None):
         """
-        Simplify the reduced star catalog so that the simplified star catalog only contains key information: the position and apparent magnitude of stars.
+        Simplify the reduced star catalog so that it only contains key information of the stars, such as the celetial position and apparent magnitude of stars.
 
         Usage:
             >>> from starcatalogquery import StarCatalogReduced
-            >>> # load the reduced star catalog GAIADR3
-            >>> dir_from_reduced = '/Volumes/TOSHIBA/starcatalog/reduced/gaiadr3/res2/'
-            >>> gaiadr3_reduced = StarCatalogReduced.load('reduced','gaiadr3',2,dir_from_reduced)
-            >>> gaiadr3_simplified = gaiadr3_reduced.simplify(9.0,2022.0)
-
+            >>> # load the reduced star catalog HYGv3.5
+            >>> dir_from_reduced = '/Volumes/TOSHIBA/starcatalogs/reduced/hygv35/res5/'
+            >>> hygv35_reduced = StarCatalogReduced.load('hygv35',5,dir_from_reduced)
+            >>> hygv35_simplified = hygv35_reduced.simplify(9.0,2022.0)
         Inputs:
-            mag_threshold -> [float] Apparent magnitude limit of the detector  
-            t_pm -> [float] The epoch when the search was performed
-            dir_simplified -> [str,optional,default=None] The path of the simplified star catalog files to store. If None, the path is automatically assigned to a suitable directory by default.
-
+            mag_threshold -> [float] Apparent magnitude limit
+            t_pm -> [float] Epoch to which the simplification is unified
+            dir_simplified -> [str,optional,default=None] Directory of the simplified star catalog files. If None, it is assigned to a build-in directory by default.
         Outputs:
             Instance of class StarCatalogSimplified      
         """
@@ -646,7 +614,7 @@ class StarCatalogReduced(object):
             else:
                 warnings.warn('Proper motion data for stars in catalog {:s} are not found.'.format(sc_name))
                     
-            #df_simplified['epoch'] = t_pm
+            # df_simplified['epoch'] = t_pm
             df_simplified.drop(columns=['epoch'],inplace=True)
             df_simplified['ra'] = df_simplified['ra'].round(6)
             df_simplified['dec'] = df_simplified['dec'].round(6)
@@ -662,66 +630,62 @@ class StarCatalogReduced(object):
         info['_mode'] = 'simplified'
         info['tiles_path'] = dir_simplified
         info['sc_size'] = dir_size
-        info['mag_cutoff'] = mag_threshold
+        info['mag_threshold'] = mag_threshold
         info['epoch'] = t_pm
 
         return StarCatalogSimplified(info)    
 
-    def search_box(self,radec_box,mag_threshold,t_pm,max_control_points=None):
+    def search_box(self,radec_box,mag_threshold,t_pm,max_num=None):
         """
-        Perform a rectangle search of stars on the reduced star catalog and return an instance of class Stars.
+        Perform a rectangle search of stars on the reduced star catalog.
 
         Usage:
             >>> from starcatalogquery import StarCatalogReduced
-            >>> # load the reduced star catalog GAIADR3
-            >>> dir_from_reduced = '/Volumes/TOSHIBA/starcatalog/reduced/gaiadr3/res2/'
-            >>> gaiadr3_reduced = StarCatalogReduced.load('reduced','gaiadr3',2,dir_from_reduced)
-            >>> stars = gaiadr3_reduced.search_box([20,30,30,40],8,2023.0)
-
+            >>> # load the reduced star catalog HYGv3.5
+            >>> dir_from_reduced = '/Volumes/TOSHIBA/starcatalogs/reduced/hygv35/res5/'
+            >>> hygv35_reduced = StarCatalogReduced.load('hygv35',5,dir_from_reduced)
+            >>> stars = hygv35_reduced.search_box([20,30,30,40],9,2022.0)
         Inputs:
-            radec_box -> [int,array_like] Rectangular search area in format of [ra_min,dec_min,ra_max,dec_max], where
-                ra_min -> [float] Left border of RA in [deg].
-                dec_min -> [float] Lower border of DEC in [deg].
-                ra_max -> [float] Right border of RA in [deg].
-                dec_max -> [float] Upper border of DEC in [deg].
-            mag_threshold -> [float] Apparent magnitude limit of the detector  
-            t_pm -> [float] The epoch when the search was performed    
-            max_control_points -> [int,optional,default=None] Number of brightest stars in the search area. If None, it is the number of all stars in the search area by deault.
-
+            radec_box -> [list] Rectangular search area in form of [ra_min,dec_min,ra_max,dec_max], where
+                ra_min -> [float] Left border of RA in [deg]
+                dec_min -> [float] Lower border of DEC in [deg]
+                ra_max -> [float] Right border of RA in [deg]
+                dec_max -> [float] Upper border of DEC in [deg]
+            mag_threshold -> [float] Apparent magnitude limit
+            t_pm -> [float] Epoch to which the stars are unified
+            max_num -> [int,optional,default=None] Maxinum number of the stars sorted by brightness for rectangle search. If None, all stars are counted in the search area by deault.
         Outputs:
             Instance of class Stars
         """
         width = int(self.tile_size.split()[0])
         df = search_box_magpm(radec_box,self.tiles_path,self.sc_name,width,self._mode,mag_threshold,t_pm)
-        info = df2info(self.sc_name,center,df,max_control_points) 
+        info = df2info(self.sc_name,center,df,max_num) 
         return Stars(info)
 
-    def search_cone(self,center,radius,mag_threshold,t_pm,max_control_points=None):   
+    def search_cone(self,center,radius,mag_threshold,t_pm,max_num=None):   
         """
-        Perform a cone search of stars on the reduced star catalog and return an instance of class Stars.
+        Perform a cone search of stars on the reduced star catalog.
 
         Usage:
             >>> from starcatalogquery import StarCatalogReduced
-            >>> # load the reduced star catalog GAIADR3
-            >>> dir_from_reduced = '/Volumes/TOSHIBA/starcatalog/reduced/gaiadr3/res2/'
-            >>> gaiadr3_reduced = StarCatalogReduced.load('reduced','gaiadr3',2,dir_from_reduced)
-            >>> stars = gaiadr3_reduced.search_cone([20,30],10,8,2023.0)
-
+            >>> # load the reduced star catalog HYGv3.5
+            >>> dir_from_reduced = '/Volumes/TOSHIBA/starcatalogs/reduced/hygv35/res5/'
+            >>> hygv35_reduced = StarCatalogReduced.load('hygv35',5,dir_from_reduced)
+            >>> stars = hygv35_reduced.search_cone([20,30],10,9,2022.0)
         Inputs:
-            center -> [int,array_like] Center of the cap in format of [ra_c,dec_c], where
+            center -> [list] Center of the cone in form of [ra_c,dec_c], where
                 ra_c -> [float] RA, in [deg].
                 dec_c -> [float] DEC, in [deg].
-            radius -> [float] Angular radius of the cap, in [deg].
-            mag_threshold -> [float] Apparent magnitude limit of the detector  
-            t_pm -> [float] The epoch when the search was performed
-            max_control_points -> [int,optional,default=None] Number of brightest stars in the search area. If None, it is the number of all stars in the search area by deault.
-
+            radius -> [float] Angular radius of the cone, in [deg].
+            mag_threshold -> [float] Apparent magnitude limit  
+            t_pm -> [float] Epoch to which the stars are unified
+            max_num -> [int,optional,default=None] Maxinum number of the stars sorted by brightness for cone search. If None, all stars are counted in the search area by deault.
         Outputs:
             Instance of class Stars
         """
         width = int(self.tile_size.split()[0])
         df = search_cone_magpm(center,radius,self.tiles_path,self.sc_name,width,self._mode,mag_threshold,t_pm)
-        info = df2info(self.sc_name,center,df,max_control_points) 
+        info = df2info(self.sc_name,center,df,max_num) 
         return Stars(info)
 
     def _search_draw(self,search_area):
@@ -730,26 +694,24 @@ class StarCatalogReduced(object):
 
         Usage:
             >>> from starcatalogquery import StarCatalogReduced
-            >>> # load the reduced star catalog GAIADR3
-            >>> dir_from_reduced = '/Volumes/TOSHIBA/starcatalog/reduced/gaiadr3/res2/'
-            >>> gaiadr3_reduced = StarCatalogReduced.load('reduced','gaiadr3',2,dir_from_reduced)
+            >>> # load the reduced star catalog HYGv3.5
+            >>> dir_from_reduced = '/Volumes/TOSHIBA/starcatalogs/reduced/hygv35/res5/'
+            >>> hygv35_reduced = StarCatalogReduced.load('hygv35',5,dir_from_reduced)
             >>> cone_area = {'cone':[20,30,10]}
-            >>> stars = gaiadr3_reduced._search_draw(cone_area)
-
+            >>> stars = hygv35_reduced._search_draw(cone_area)
         Inputs:
-            search_area -> [dict] The scope of the search area, such as {'cone':[20,30,10]} or {'box':[20,30,30,40]}, where
+            search_area -> [dict] Scope of the search area, such as {'cone':[20,30,10]} or {'box':[20,30,30,40]}, where
             for {'box':[ra_min,dec_min,ra_max,dec_max]}:
-                ra_min -> [float] Left border of RA in [deg].
-                dec_min -> [float] Lower border of DEC in [deg].
-                ra_max -> [float] Right border of RA in [deg].
-                dec_max -> [float] Upper border of DEC in [deg].
+                ra_min -> [float] Left border of RA in [deg]
+                dec_min -> [float] Lower border of DEC in [deg]
+                ra_max -> [float] Right border of RA in [deg]
+                dec_max -> [float] Upper border of DEC in [deg]
             for {'cone':[ra_c,dec_c,radius]}:
-                ra_c -> [float] RA, in [deg].
-                dec_c -> [float] DEC, in [deg].
-                radius -> [float] Angular radius of the cap, in [deg].  
-
+                ra_c -> [float] RA, in [deg]
+                dec_c -> [float] DEC, in [deg]
+                radius -> [float] Angular radius of the cone, in [deg] 
         Outputs:
-            An image that shows the scope of the search area and the coverage of the corresponding tiles.          
+            An image sketching the scope of the search area and the coverage of the corresponding tiles.          
         """
         width = int(self.tile_size.split()[0]) 
         search_draw(width,search_area)   
@@ -759,26 +721,25 @@ class StarCatalogSimplified(object):
     Class StarCatalogSimplified
 
     Attributes:
-        - tiles_path: Path of the starcatalog tile files. 
-        - sc_size: The size of the star catalog.
+        - tiles_path: Path of the star catalog files. 
         - tiles_num: Total number of the tile files.
-        - validity: The validity of the star catalog.
-        - sc_name: Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
-        - tile_size: Size of the tile in [deg]
-        - _mode: Types of star catalogs, including 'raw', 'reduced', 'simplified', where
-            'raw' represents the original star catalog, which contains all information about the star
-            'reduced' represents the reduced star catalog, which contains the position, proper motion, apparent magnitude, epoch of the star
-            'simplified' represents the minimalist star catalog, which only includes the position and apparent magnitude of stars
+        - tile_size: Geometric size of the tile in [deg]
+        - sc_size: File size of the star catalog.
+        - validity: Validity of the star catalog.
+        - sc_name: Name of the star catalog. Available options include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+        - _mode: Type of the star catalog. Available options include 'raw', 'reduced', 'simplified', where
+            'raw' represents the original star catalog, which covers all information about the stars,
+            'reduced' represents the reduced star catalog, which contains the position, proper motion, apparent magnitude, epoch of the stars,
+            'simplified' represents the minimalist star catalog, which only includes the position and apparent magnitude of the stars at a specific epoch.
         - stars_num: Total number of stars in the catalog
-        - mag: Apparent magnitude of stars in the catalog
+        - mag: Range of apparent magnitudes for the catalog
         - description: Catalog Summary
-
     Methods:
         - load: Load the simplified star catalog files from the local database.
-        - search_box: Perform a rectangle search of stars on the simplified star catalog and return an instance of class Stars.
-        - search_cone: Perform a cone search of stars on the simplified star catalog and return an instance of class Stars.   
-        - _search_draw: Visualize the scope of the search area and the coverage of the corresponding tiles.  
-        - h5_incices: Generate a h5-formatted star catalog file, which records the center pointing of each sky area, the pixel coordinates of the stars, the triangle invariants and the asterism indices.
+        - search_box: Perform a rectangle search on the simplified star catalog.
+        - search_cone: Perform a cone search on the simplified star catalog.
+        - _search_draw: Visualize the scope of the search area and the coverage of the corresponding tiles.
+        - h5_incices: Generate a h5-formatted star catalog indices file, which records the center pointing, pixel coordinates of the stars, triangle invariants and asterism indices of each sky area.
     """    
     def __init__(self,info):  
 
@@ -791,90 +752,84 @@ class StarCatalogSimplified(object):
     
         return 'Instance of class StarCatalogSimplified'        
 
-    def load(sc_name,tile_size,mag_cutoff,epoch,dir_from=None):
+    def load(sc_name,tile_size,mag_threshold,epoch,dir_from=None):
         """
         Load the simplified star catalog files from the local database.
 
         Usage:
             >>> from starcatalogquery import StarCatalogSimplified
-            >>> # load the simplified star catalog GAIADR3
-            >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalog/simplified/gaiadr3/res2/'
-            >>> gaiadr3_simplified = StarCatalogSimplified.load('simplified','gaiadr3',2,dir_from_simplified)
-
+            >>> # load the simplified star catalog HYGv3.5
+            >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalogs/simplified/hygv35/res5/mag9.0/epoch2022.0/'
+            >>> hygv35_simplified = StarCatalogSimplified.load('hygv35',5,9,2022,dir_from_simplified)
         Inputs:
-            sc_name -> [str] Name of the starcatalog. Available starcatalogs include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
-            tile_size -> [int] Size of the tile in [deg]
-            mag_cutoff -> [float] The truncated magnitude of the simplified star catalog
-            epoch -> [float] The epoch of the simplified star catalog
-            dir_from -> [str,optional,default=None] The loading path of the star catalog files. If None, the path is automatically assigned to a suitable directory by default.
-
+            sc_name -> [str] Name of the star catalog. Available options include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
+            tile_size -> [int] Geometric size of the tile in [deg]
+            mag_threshold -> [float] Apparent magnitude limit
+            epoch -> [float] Epoch of the star catalog
+            dir_from -> [str,optional,default=None] Diectory of the star catalog files. If None, it is assigned to a build-in directory by default.
         Outputs:
             Instance of class StarCatalogSimplified
         """ 
-        if dir_from is None: dir_from = 'starcatalogs/simplified/{:s}/res{:d}/mag{:.1f}/epoch{:.1f}/'.format(sc_name,tile_size,mag_cutoff,epoch)
+        if dir_from is None: dir_from = 'starcatalogs/simplified/{:s}/res{:d}/mag{:.1f}/epoch{:.1f}/'.format(sc_name,tile_size,mag_threshold,epoch)
         if not os.path.exists(dir_from): raise Exception('Path of the star catalog {:s} does not exist.'.format(sc_name))  
 
         # calculate total size and numbers of tile files    
         file_num,dir_size,validity = tiles_statistic(dir_from,tile_size) 
         stars_num,mag,description = starcatalog_info(sc_name)
 
-        dict_values = dir_from,dir_size,file_num,validity,sc_name,'{:d} deg'.format(tile_size),'simplified',stars_num,mag,description,mag_cutoff,epoch
-        dict_keys = 'tiles_path','sc_size','tiles_num','validity','sc_name','tile_size','_mode','stars_num','mag','description','mag_cutoff','epoch'
+        dict_values = dir_from,dir_size,file_num,validity,sc_name,'{:d} deg'.format(tile_size),'simplified',stars_num,mag,description,mag_threshold,epoch
+        dict_keys = 'tiles_path','sc_size','tiles_num','validity','sc_name','tile_size','_mode','stars_num','mag','description','mag_threshold','epoch'
         info = dict(zip(dict_keys, dict_values))
 
         return StarCatalogSimplified(info)   
 
-    def search_box(self,radec_box,max_control_points=None):
+    def search_box(self,radec_box,max_num=None):
         """
-        Perform a rectangle search of stars on the simplified star catalog and return an instance of class Stars.
+        Perform a rectangle search of stars on the simplified star catalog.
 
         Usage:
             >>> from starcatalogquery import StarCatalogSimplified
-            >>> # load the simplified star catalog GAIADR3
-            >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalog/simplified/gaiadr3/res2/'
-            >>> gaiadr3_simplified = StarCatalogSimplified.load('simplified','gaiadr3',2,dir_from_simplified)
-            >>> stars = gaiadr3_simplified.search_box([20,30,30,40])
-
+            >>> # load the simplified star catalog HYGv3.5
+            >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalogs/simplified/hygv35/res5/mag9.0/epoch2022.0/'
+            >>> hygv35_simplified = StarCatalogSimplified.load('hygv35',5,9,2022,dir_from_simplified)
+            >>> stars = hygv35_simplified.search_box([20,30,30,40])
         Inputs:
-            radec_box -> [int,array_like] Rectangular search area in format of [ra_min,dec_min,ra_max,dec_max], where
-                ra_min -> [float] Left border of RA in [deg].
-                dec_min -> [float] Lower border of DEC in [deg].
-                ra_max -> [float] Right border of RA in [deg].
-                dec_max -> [float] Upper border of DEC in [deg].
-            max_control_points -> [int,optional,default=None] Number of brightest stars in the search area. If None, it is the number of all stars in the search area by deault.
-
+            radec_box -> [list] Rectangular search area in form of [ra_min,dec_min,ra_max,dec_max], where
+                ra_min -> [float] Left border of RA in [deg]
+                dec_min -> [float] Lower border of DEC in [deg]
+                ra_max -> [float] Right border of RA in [deg]
+                dec_max -> [float] Upper border of DEC in [deg]
+            max_num -> [int,optional,default=None] Maxinum number of the stars sorted by brightness for rectangle search. If None, all stars are counted in the search area by deault.
         Outputs:
             Instance of class Stars
         """
         width = int(self.tile_size.split()[0])
         df = search_box(radec_box,self.tiles_path,self.sc_name,width,self._mode) 
-        info = df2info(self.sc_name,center,df,max_control_points) 
+        info = df2info(self.sc_name,center,df,max_num) 
         return Stars(info)
 
-    def search_cone(self,center,radius,max_control_points=None):   
+    def search_cone(self,center,radius,max_num=None):   
         """
-        Perform a cone search of stars on the simplified star catalog and return an instance of class Stars.
+        Perform a cone search of stars on the simplified star catalog.
 
         Usage:
             >>> from starcatalogquery import StarCatalogSimplified
-            >>> # load the simplified star catalog GAIADR3
-            >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalog/simplified/gaiadr3/res2/'
-            >>> gaiadr3_simplified = StarCatalogSimplified.load('simplified','gaiadr3',2,dir_from_simplified)
-            >>> stars = gaiadr3_simplified.search_cone([20,30],10)
-
+            >>> # load the simplified star catalog HYGv3.5
+            >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalogs/simplified/hygv35/res5/mag9.0/epoch2022.0/'
+            >>> hygv35_simplified = StarCatalogSimplified.load('hygv35',5,9,2022,dir_from_simplified)
+            >>> stars = hygv35_simplified.search_cone([20,30],10)
         Inputs:
-            center -> [int,array_like] Center of the cap in format of [ra_c,dec_c], where
-                ra_c -> [float] RA, in [deg].
-                dec_c -> [float] DEC, in [deg].
-            radius -> [float] Angular radius of the cap, in [deg].
-            max_control_points -> [int,optional,default=None] Number of brightest stars in the search area. If None, it is the number of all stars in the search area by deault.
-
+            center -> [int,array_like] Center of the cone in form of [ra_c,dec_c], where
+                ra_c -> [float] RA, in [deg]
+                dec_c -> [float] DEC, in [deg]
+            radius -> [float] Angular radius of the cone, in [deg].
+            max_num -> [int,optional,default=None] Maxinum number of the stars sorted by brightness for rectangle search. If None, all stars are counted in the search area by deault.
         Outputs:
             Instance of class Stars
         """
         width = int(self.tile_size.split()[0])
         df = search_cone(center,radius,self.tiles_path,self.sc_name,width,self._mode)
-        info = df2info(self.sc_name,center,df,max_control_points) 
+        info = df2info(self.sc_name,center,df,max_num) 
         return Stars(info)
 
     def _search_draw(self,search_area):
@@ -883,53 +838,64 @@ class StarCatalogSimplified(object):
 
         Usage:
             >>> from starcatalogquery import StarCatalogSimplified
-            >>> # load the simplified star catalog GAIADR3
-            >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalog/simplified/gaiadr3/res2/'
-            >>> gaiadr3_simplified = StarCatalogReduced.load('simplified','gaiadr3',2,dir_from_simplified)
+            >>> # load the simplified star catalog HYGv3.5
+            >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalogs/simplified/hygv35/res5/mag9.0/epoch2022.0/'
+            >>> hygv35_simplified = StarCatalogReduced.load('hygv35',5,9,2022,dir_from_simplified)
             >>> cone_area = {'cone':[20,30,10]}
-            >>> stars = gaiadr3_simplified._search_draw(cone_area)
-
+            >>> stars = hygv35_simplified._search_draw(cone_area)
         Inputs:
-            search_area -> [dict] The scope of the search area, such as {'cone':[20,30,10]} or {'box':[20,30,30,40]}, where
+            search_area -> [dict] Scope of the search area, such as {'cone':[20,30,10]} or {'box':[20,30,30,40]}, where
             for {'box':[ra_min,dec_min,ra_max,dec_max]}:
-                ra_min -> [float] Left border of RA in [deg].
-                dec_min -> [float] Lower border of DEC in [deg].
-                ra_max -> [float] Right border of RA in [deg].
-                dec_max -> [float] Upper border of DEC in [deg].
+                ra_min -> [float] Left border of RA in [deg]
+                dec_min -> [float] Lower border of DEC in [deg]
+                ra_max -> [float] Right border of RA in [deg]
+                dec_max -> [float] Upper border of DEC in [deg]
             for {'cone':[ra_c,dec_c,radius]}:
-                ra_c -> [float] RA, in [deg].
-                dec_c -> [float] DEC, in [deg].
-                radius -> [float] Angular radius of the cap, in [deg].  
-
+                ra_c -> [float] RA, in [deg]
+                dec_c -> [float] DEC, in [deg]
+                radius -> [float] Angular radius of the cone, in [deg].  
         Outputs:
-            An image that shows the scope of the search area and the coverage of the corresponding tiles.          
+            An image sketching the scope of the search area and the coverage of the corresponding tiles.          
         """
         width = int(self.tile_size.split()[0]) 
         search_draw(width,search_area)   
 
-    def h5_incices(self,fov,pixel_width,max_control_points=60):
+    def h5_incices(self,fov,pixel_width,max_num=30):
         """
-        Generate a h5-formatted star catalog file, which records the center pointing of each sky area, the pixel coordinates of the stars, the triangle invariants and the asterism indices.
+        Generate a h5-formatted star catalog incices file, which records the center pointing, pixel coordinates of the stars, triangle invariants and asterism indices of each sky area.
 
         Usage:
             >>> from starcatalogquery import StarCatalogSimplified
-            >>> # load the simplified star catalog GAIADR3
-            >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalog/simplified/gaiadr3/res2/'
-            >>> gaiadr3_simplified = StarCatalogSimplified.load('simplified','gaiadr3',2,dir_from_simplified)
-            >>> outh5 = gaiadr3_simplified.h5_incices(20,0.01)
-
+            >>> # load the simplified star catalog HYGv3.5
+            >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalogs/simplified/hygv35/res5/mag9.0/epoch2022.0/'
+            >>> hygv35_simplified = StarCatalogSimplified.load('hygv35',5,9,2022,dir_from_simplified)
+            >>> outh5 = hygv35_simplified.h5_incices(8,0.01)
         Inputs:
             fov -> [float] FOV of camera
             pixel_width -> [float] Pixel width in [deg]
-            max_control_points -> [int,optional,default=60] Number of brightest stars in the search area.
-
+            max_num -> [int,optional,default=30] Maxinum number of the stars sorted by brightness used for a sky area.
         Outputs:
-            h5-formatted star catalog file    
+            outh5 -> h5-formatted star catalog indices file    
         """ 
         dir_h5 = 'starcatalogs/indices/{:s}/'.format(self.sc_name)
         Path(dir_h5).mkdir(parents=True, exist_ok=True)  
 
-        outh5 = dir_h5 + 'fov{:d}_mag{:.1f}_mcp{:d}_{:.1f}.h5'.format(fov,self.mag_cutoff,max_control_points,self.epoch)
+        if fov >= 28.4 and fov < 58.6: 
+            k,nside = 0,1
+            search_radius = 37.2
+        elif fov >= 13.4 and fov < 28.4:
+            k,nside = 1,2
+            search_radius = 17.0
+        elif fov >= 6.6 and fov < 13.4:
+            k,nside = 2,4
+            search_radius = 9.3
+        elif fov >= 3.3 and fov < 6.6:
+            k,nside = 3,8
+            search_radius = 4.1  
+        else:
+            raise Exception('FOV should be between 3.3 and 58.6 deg')     
+
+        outh5 = dir_h5 + 'k{:d}_mag{:.1f}_mcp{:d}_{:.1f}.h5'.format(k,self.mag_threshold,max_num,self.epoch)
 
         if os.path.exists(outh5): return outh5 
 
@@ -940,27 +906,17 @@ class StarCatalogSimplified(object):
         stars_invariants_grp = fout.create_group("stars_invariants")
         stars_asterisms_grp = fout.create_group("stars_asterisms")
 
-        if fov > 43: 
-            nside = 1
-            search_radius = 34
-        elif fov > 22:
-            nside = 2
-            search_radius = 17
-        else:
-            nside = 4
-            search_radius = 9
-
         npix = hp.nside2npix(nside)
         fp_radecs = []
         for seq in range(npix):
 
-            desc = 'Generating starcatalog sky area index {:s}{:d}{:s} of {:d}'.format(Fore.BLUE,seq+1,Fore.RESET,npix)
+            desc = 'Generating starcatalog sky area index {:s}{:d}{:s} of {:d} for level k{:d}'.format(Fore.BLUE,seq+1,Fore.RESET,npix,k)
             print(desc,end='\r')
 
             fp_radec = hp.pix2ang(nside,seq,lonlat=True)
             fp_radecs.append(fp_radec)
 
-            stars = self.search_cone(fp_radec,search_radius,max_control_points)
+            stars = self.search_cone(fp_radec,search_radius,max_num)
             stars.pixel_xy(pixel_width)
             stars.invariantfeatures()
 
@@ -977,13 +933,12 @@ class Stars(object):
     Class Stars
 
     Attributes:
-        - sc_name: Name of the starcatalog.
-        - center: Center pointing in format of [ra_c,dec_c] in [deg]
-        - df: Dataframe of the stars
-        - max_control_points: Number of stars in the dataframe
+        - sc_name: Name of the star catalog
+        - center: Center pointing in form of [ra_c,dec_c] in [deg]
+        - df: Pandas dataframe of the stars
+        - max_num: Number of stars in the dataframe
         - xy: Pixel coordinates of stars
         - radec: Celestial coordinates of stars
-
     Methods:
         - pixel_xy: Calculate the pixel coordinates of stars in a sky area.
     """    
@@ -1005,15 +960,13 @@ class Stars(object):
 
         Usage:
             >>> from starcatalogquery import StarCatalogSimplified
-            >>> # load the simplified star catalog GAIADR3
-            >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalog/simplified/gaiadr3/res2/'
-            >>> gaiadr3_simplified = StarCatalogReduced.load('simplified','gaiadr3',2,dir_from_simplified)
-            >>> gaiadr3_simplified_stars = gaiadr3_simplified.search_cone([20,30],10)
-            >>> stars = gaiadr3_simplified_stars.pixel_xy(0.01)
-
+            >>> # load the simplified star catalog HYGv3.5
+            >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalogs/simplified/hygv35/res5/mag9.0/epoch2022.0/'
+            >>> hygv35_simplified = StarCatalogReduced.load(hygv35',5,9,2022,dir_from_simplified)
+            >>> hygv35_simplified_stars = hygv35_simplified.search_cone([20,30],10)
+            >>> stars = hygv35_simplified_stars.pixel_xy(0.01)
         Inputs:
             pixel_width -> [float] Pixel width in [deg]
-
         Outputs:
             Instance of class Stars       
         """
