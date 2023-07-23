@@ -18,6 +18,24 @@ from .tiles_draw import search_draw
 from .wcs import xy_catalog
 from .invariantfeatures import _generate_invariants
 
+def solidangle_ratio(fov,r):
+    """
+    Calculate the ratio of the solid angles spanned by the square and the cone.
+
+    Usage:
+        >>> ratio = Solid_angles_ratio(8,10)
+    Inputs:
+        fov -> [float] FOV of a camera in [deg] that determines a square
+        r -> [float] Angular radius in [deg] that determines a cone
+    Outputs:
+        ratio -> [float] The ratio of the solid angles spanned by the square and the cone    
+    """
+    fov_rad = np.deg2rad(fov)
+    r_rad = np.deg2rad(r)
+    Omega_square = 4*np.arcsin(np.tan(fov_rad/2)**2) # solid angles spanned by the square
+    Omega_cone = 4*np.pi*np.sin(r_rad/2)**2 # solid angles spanned by the cone
+    return Omega_square/Omega_cone
+
 class StarCatalog(object):
 
     def get(sc_name,tile_size=None,dir_to=None):
@@ -135,7 +153,7 @@ class StarCatalogRaw(object):
 
     Attributes:
         - tiles_dir: Directory of the star catalog files
-        - tiles_num: Total number of the tile files
+        - tiles_num: Total number of the tile files.
         - tile_size: Geometric size of the tile in [deg]
         - sc_size: File size of the star catalog
         - validity: Validity of the star catalog
@@ -505,11 +523,11 @@ class StarCatalogReduced(object):
     Class StarCatalogReduced
 
     Attributes:
-        - tiles_dir: Directory of the star catalog files. 
+        - tiles_dir: Directory of the star catalog files
         - tiles_num: Total number of the tile files.
         - tile_size: Geometric size of the tile in [deg]
-        - sc_size: File size of the star catalog.
-        - validity: Validity of the star catalog.
+        - sc_size: File size of the star catalog
+        - validity: Validity of the star catalog
         - sc_name: Name of the star catalog. Available options include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
         - _mode: Type of the star catalog. Available options include 'raw', 'reduced', 'simplified', where
             'raw' represents the original star catalog, which covers all information about the stars,
@@ -721,11 +739,11 @@ class StarCatalogSimplified(object):
     Class StarCatalogSimplified
 
     Attributes:
-        - tiles_dir: Directory of the star catalog files. 
-        - tiles_num: Total number of the tile files.
+        - tiles_dir: Directory of the star catalog files
+        - tiles_num: Total number of the tile files
         - tile_size: Geometric size of the tile in [deg]
-        - sc_size: File size of the star catalog.
-        - validity: Validity of the star catalog.
+        - sc_size: File size of the star catalog
+        - validity: Validity of the star catalog
         - sc_name: Name of the star catalog. Available options include 'hygv35', 'gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob', etc.
         - _mode: Type of the star catalog. Available options include 'raw', 'reduced', 'simplified', where
             'raw' represents the original star catalog, which covers all information about the stars,
@@ -860,7 +878,7 @@ class StarCatalogSimplified(object):
         width = int(self.tile_size.split()[0]) 
         search_draw(width,search_area)   
 
-    def h5_incices(self,fov,pixel_width,max_num=30):
+    def h5_indices(self,fov,pixel_width,max_num=30):
         """
         Generate a h5-formatted star catalog incices file, which records the center pointing, pixel coordinates of the stars, triangle invariants and asterism indices of each sky area.
 
@@ -875,7 +893,8 @@ class StarCatalogSimplified(object):
             pixel_width -> [float] Pixel width in [deg]
             max_num -> [int,optional,default=30] Maxinum number of the stars sorted by brightness used for a sky area.
         Outputs:
-            outh5 -> h5-formatted star catalog indices file    
+            outh5 -> h5-formatted star catalog indices file 
+            ratio -> [float] The ratio of the solid angles spanned by the square and the cone   
         """ 
         dir_h5 = 'starcatalogs/indices/{:s}/'.format(self.sc_name)
         Path(dir_h5).mkdir(parents=True, exist_ok=True)  
@@ -893,11 +912,10 @@ class StarCatalogSimplified(object):
             k,nside = 3,8
             search_radius = 4.1  
         else:
-            raise Exception('FOV should be between 3.3 and 58.6 deg')     
-
+            raise Exception('FOV should be between 3.3 and 58.6 deg')  
+        ratio = solidangle_ratio(fov,search_radius)       
         outh5 = dir_h5 + 'k{:d}_mag{:.1f}_mcp{:d}_{:.1f}.h5'.format(k,self.mag_threshold,max_num,self.epoch)
-
-        if os.path.exists(outh5): return outh5 
+        if os.path.exists(outh5): return outh5,ratio 
 
         # write to h5 file
         fout = h5py.File(outh5,'w')
@@ -924,9 +942,11 @@ class StarCatalogSimplified(object):
             stars_invariants_grp.create_dataset(str(seq), data=stars.invariants)
             stars_asterisms_grp.create_dataset(str(seq), data=stars.asterisms)  
 
+        print('\nFinished')
+        
         fout.create_dataset("fp_radecs", data=np.array(fp_radecs))
         fout.close() # close file
-        return outh5    
+        return outh5,ratio    
             
 class Stars(object):
     """

@@ -89,9 +89,9 @@ Perform a cone search of stars on the raw or reduced star catalog.
 >>> # Set cutoff magnitude and observation epoch
 >>> mag_threshold,t_pm = 9.0,2022.0
 >>> # Set the maximum number of brightest stars to output
->>> max_control_points = 100 # optinal, default = None
->>> hygv35_raw_stars = hygv35_raw.search_cone(center,radius,mag_threshold,t_pm,max_control_points)
->>> hygv35_reduced_stars = hygv35_reduced.search_cone(center,radius,mag_threshold,t_pm,max_control_points)
+>>> max_num = 100 # optinal, default = None
+>>> hygv35_raw_stars = hygv35_raw.search_cone(center,radius,mag_threshold,t_pm,max_num)
+>>> hygv35_reduced_stars = hygv35_reduced.search_cone(center,radius,mag_threshold,t_pm,max_num)
 ```
 
 Perform a rectangle search of stars on the raw or reduced star catalog.
@@ -102,16 +102,16 @@ Perform a rectangle search of stars on the raw or reduced star catalog.
 >>> # Set cutoff magnitude and observation epoch
 >>> mag_threshold,t_pm = 9.0,2022.0
 >>> # Set the maximum number of brightest stars to output
->>> max_control_points = 100 # optinal, default = None
->>> hygv35_raw_stars = hygv35_raw.search_box(radec_box,mag_threshold,t_pm,max_control_points)
->>> hygv35_reduced_stars = hygv35_reduced.search_box(radec_box,mag_threshold,t_pm,max_control_points)
+>>> max_num = 100 # optinal, default = None
+>>> hygv35_raw_stars = hygv35_raw.search_box(radec_box,mag_threshold,t_pm,max_num)
+>>> hygv35_reduced_stars = hygv35_reduced.search_box(radec_box,mag_threshold,t_pm,max_num)
 ```
 
 Perform a cone/rectangle search of stars on the simplified star catalog.
 
 ```python
->>> hygv35_simplified_stars = hygv35_simplified.search_cone(center,radius,max_control_points)
->>> hygv35_simplified_stars = hygv35_simplified.search_box(radec_box,max_control_points)
+>>> hygv35_simplified_stars = hygv35_simplified.search_cone(center,radius,max_num)
+>>> hygv35_simplified_stars = hygv35_simplified.search_box(radec_box,max_num)
 ```
 
 We get an instance of class Stars, with
@@ -120,7 +120,7 @@ We get an instance of class Stars, with
         - sc_name: Name of the starcatalog.
         - center: Center pointing in format of [ra_c,dec_c] in [deg]
         - df: Dataframe of the stars
-        - max_control_points: Number of stars in the dataframe
+        - max_num: Number of stars in the dataframe
         - radec: Celestial coordinates of stars
     Methods:
         - pixel_xy: Calculate the pixel coordinates of stars in a sky area.
@@ -139,8 +139,7 @@ Given the pixel width of the detector, calculate the pixel coordinates of the fi
 
 ```python
 >>> hygv35_simplified_stars.invariantfeatures()
->>> hygv35_simplified_stars.invariantfeatures()
->>> print(hygv35_simplified_stars.invariants,hygv35_simplified_stars.asterisms,.kdtree)
+>>> print(hygv35_simplified_stars.invariants,hygv35_simplified_stars.asterisms,hygv35_simplified_stars.kdtree)
 ```
 
 ### Visualization
@@ -187,9 +186,9 @@ By default, the following strategy is adopted to divide the sky area:
 
 ```python
 >>> fov,pixel_width = 8,0.01 # in [deg]
->>> # Set the maximum number of brightest stars in earch sky area
->>> max_control_points = 30 
->>> outh5 = hygv35_simplified.h5_incices(fov,pixel_width,max_control_points)
+>>> # Set the maximum number of brightest stars in each sky area
+>>> max_num = 30 
+>>> outh5,ratio = hygv35_simplified.h5_indices(fov,pixel_width,max_num) # Ratio of the solid angles spanned by the square and the cone
 ```
 
 A h5-formatted star catalog indices file is generated, which records the center pointing, pixel coordinates of the stars, triangle invariants and asterism indices of each sky area.
@@ -198,7 +197,7 @@ A h5-formatted star catalog indices file is generated, which records the center 
 
 ```python
 >>> from starcatalogquery import StarCatalog
->>> infile_h5 = 'starcatalogs/indices/hygv35/fov20_mag8_mcp40_2023.0.h5'
+>>> infile_h5 = 'starcatalogs/indices/hygv35/k2_mag9.0_mcp30_2022.0.h5'
 >>> fp_radecs,stars_xy,stars_invariants,stars_asterisms = StarCatalog.read_h5_indices(infile_h5)
 ```
 
@@ -224,7 +223,7 @@ A h5-formatted star catalog indices file is generated, which records the center 
 
 ## Change log
 
-- **0.1.9 — Jul 22, 2023**
+- **0.1.10 — Jul 23, 2023**
   
   - Adjusted the strategy for dividing the celestial sphere into multiple equal-area sky regions using the HEALPix algorithm, as well as the corresponding radius of cone search used for blind matching of star maps.
 
