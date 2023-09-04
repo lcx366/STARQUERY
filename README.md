@@ -176,13 +176,15 @@ For blind matching of star maps, the celestial sphere is pre-divided into multip
 
 By default, the following strategy is adopted to divide the sky area:
 
-- For 58.6 > FOV >= 28.4, k = 0, radius of cone search = 37.2; 
+- For 58.6 > FOV >= 29.3, k = 1, radius of cone search = 37.2; 
 
-- For 28.4 > FOV >= 13.4, k = 1, radius of cone search = 17.0;
+- For 29.3 > FOV >= 14.7, k = 2, radius of cone search = 17.0;
 
-- For 13.4 > FOV >= 6.6, k = 2, radius of cone search = 8.3;
+- For 14.7 > FOV >= 7.33, k = 3, radius of cone search = 8.3;
 
-- For 6.6 > FOV >= 3.3, k = 3, radius of cone search = 4.1;
+- For 7.33 > FOV >= 3.66, k = 4, radius of cone search = 4.1;
+
+- For 3.66 > FOV >= 1.83, k = 5, radius of cone search = 2.1;
 
 ```python
 >>> fov,pixel_width = 8,0.01 # in [deg]
@@ -223,9 +225,15 @@ A h5-formatted star catalog indices file is generated, which records the center 
 
 ## Change log
 
+- **0.1.11 — Sep 04, 2023**
+  
+  - Adjusted the parameters involved in dividing the celestial sphere into multiple equal-area sky regions using the HEALPix algorithm, as well as the corresponding radius of cone search used for blind matching of star maps.
+  - Adjusted the arrangement of the equal-area sky regions so that it gradually moves from the celestial equator to the poles.
+  - minor bugs fixed
+
 - **0.1.10 — Jul 23, 2023**
   
-  - Adjusted the strategy for dividing the celestial sphere into multiple equal-area sky regions using the HEALPix algorithm, as well as the corresponding radius of cone search used for blind matching of star maps.
+  - Added the the HEALPix algorithm for dividing the celestial sphere into multiple equal-area sky regions.
 
 - **0.1.8 — Jul 03, 2023**
   

@@ -138,14 +138,17 @@ class StarCatalog(object):
         # read data
         fp_radecs = fin['fp_radecs'][:]
         stars_xy,stars_invariants, stars_asterisms = [],[],[]
-        for j in range(len(fp_radecs)):
+        sort_index = np.argsort(np.abs(fp_radecs[:,1]))
+        fp_radecs_sort = fp_radecs[sort_index]
+
+        for j in sort_index:
             stars_xy.append(fin['stars_xy/'+str(j)][:])
             stars_invariants.append(fin['stars_invariants/'+str(j)][:])
             stars_asterisms.append(fin['stars_asterisms/'+str(j)][:])
     
         # close the file
         fin.close()   
-        return fp_radecs,stars_xy,stars_invariants,stars_asterisms  
+        return fp_radecs_sort,stars_xy,stars_invariants,stars_asterisms  
 
 class StarCatalogRaw(object):
     """
@@ -757,7 +760,7 @@ class StarCatalogSimplified(object):
         - search_box: Perform a rectangle search on the simplified star catalog.
         - search_cone: Perform a cone search on the simplified star catalog.
         - _search_draw: Visualize the scope of the search area and the coverage of the corresponding tiles.
-        - h5_incices: Generate a h5-formatted star catalog indices file, which records the center pointing, pixel coordinates of the stars, triangle invariants and asterism indices of each sky area.
+        - h5_indices: Generate a h5-formatted star catalog indices file, which records the center pointing, pixel coordinates of the stars, triangle invariants and asterism indices of each sky area.
     """    
     def __init__(self,info):  
 
@@ -880,14 +883,14 @@ class StarCatalogSimplified(object):
 
     def h5_indices(self,fov,pixel_width,max_num=30):
         """
-        Generate a h5-formatted star catalog incices file, which records the center pointing, pixel coordinates of the stars, triangle invariants and asterism indices of each sky area.
+        Generate a h5-formatted star catalog indices file, which records the center pointing, pixel coordinates of the stars, triangle invariants and asterism indices of each sky area.
 
         Usage:
             >>> from starcatalogquery import StarCatalogSimplified
             >>> # load the simplified star catalog HYGv3.5
             >>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalogs/simplified/hygv35/res5/mag9.0/epoch2022.0/'
             >>> hygv35_simplified = StarCatalogSimplified.load('hygv35',5,9,2022,dir_from_simplified)
-            >>> outh5 = hygv35_simplified.h5_incices(8,0.01)
+            >>> outh5 = hygv35_simplified.h5_indices(8,0.01)
         Inputs:
             fov -> [float] FOV of camera
             pixel_width -> [float] Pixel width in [deg]
@@ -899,20 +902,23 @@ class StarCatalogSimplified(object):
         dir_h5 = 'starcatalogs/indices/{:s}/'.format(self.sc_name)
         Path(dir_h5).mkdir(parents=True, exist_ok=True)  
 
-        if fov >= 28.4 and fov < 58.6: 
-            k,nside = 0,1
-            search_radius = 37.2
-        elif fov >= 13.4 and fov < 28.4:
+        if fov >= 29.3 and fov < 58.6: # solidangle_ratio(58.6,37.2) = 1, solidangle_ratio(28.4,37.2) = 1/5
             k,nside = 1,2
-            search_radius = 17.0
-        elif fov >= 6.6 and fov < 13.4:
+            search_radius = 37.2
+        elif fov >= 14.7 and fov < 29.3:
             k,nside = 2,4
-            search_radius = 9.3
-        elif fov >= 3.3 and fov < 6.6:
+            search_radius = 17.0
+        elif fov >= 7.33 and fov < 14.7:
             k,nside = 3,8
+            search_radius = 8.3
+        elif fov >= 3.66 and fov < 7.33:
+            k,nside = 4,16
             search_radius = 4.1  
+        elif fov >= 1.83 and fov < 3.66:
+            k,nside = 5,32
+            search_radius = 2.1    
         else:
-            raise Exception('FOV should be between 3.3 and 58.6 deg')  
+            raise Exception('Currently, FOV within [1.83, 58.6] deg is supported.')  
         ratio = solidangle_ratio(fov,search_radius)       
         outh5 = dir_h5 + 'k{:d}_mag{:.1f}_mcp{:d}_{:.1f}.h5'.format(k,self.mag_threshold,max_num,self.epoch)
         if os.path.exists(outh5): return outh5,ratio 
