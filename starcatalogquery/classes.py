@@ -352,6 +352,7 @@ class StarCatalogRaw(object):
             Instance of class Stars
         """
         ra_min,dec_min,ra_max,dec_max = radec_box
+        center = [(ra_min+ra_max)/2,(dec_min+dec_max)/2]
         tile_size = int(self.tile_size.split()[0])
         sc_path,sc_name = self.tiles_dir,self.sc_name
         sc_indices = box2seqs(radec_box,tile_size) 
@@ -678,6 +679,8 @@ class StarCatalogReduced(object):
         Outputs:
             Instance of class Stars
         """
+        ra_min,dec_min,ra_max,dec_max = radec_box
+        center = [(ra_min+ra_max)/2,(dec_min+dec_max)/2]
         width = int(self.tile_size.split()[0])
         df = search_box_magpm(radec_box,self.tiles_dir,self.sc_name,width,self._mode,mag_threshold,t_pm)
         info = df2info(self.sc_name,center,df,max_num) 
@@ -824,6 +827,8 @@ class StarCatalogSimplified(object):
         Outputs:
             Instance of class Stars
         """
+        ra_min,dec_min,ra_max,dec_max = radec_box
+        center = [(ra_min+ra_max)/2,(dec_min+dec_max)/2]
         width = int(self.tile_size.split()[0])
         df = search_box(radec_box,self.tiles_dir,self.sc_name,width,self._mode) 
         info = df2info(self.sc_name,center,df,max_num) 
