@@ -199,7 +199,7 @@ A h5-formatted star catalog indices file is generated, which records the center 
 
 ```python
 >>> from starcatalogquery import StarCatalog
->>> infile_h5 = 'starcatalogs/indices/hygv35/k2_mag9.0_mcp30_2022.0.h5'
+>>> infile_h5 = 'starcatalogs/indices/hygv35/k3_mag9.0_mcp30_2022.0.h5'
 >>> fp_radecs,stars_xy,stars_invariants,stars_asterisms = StarCatalog.read_h5_indices(infile_h5)
 ```
 
@@ -209,9 +209,9 @@ A h5-formatted star catalog indices file is generated, which records the center 
 
 ```python
 >>> from starcatalogquery import StarCatalog
->>> dir_from_raw = '/Volumes/TOSHIBA/starcatalogs/raw/hygv35/res5/' # Path of the raw starcatalog
+>>> dir_from_raw = 'starcatalogs/raw/hygv35/res5/' # Path of the raw starcatalog
 >>> hygv35_raw = StarCatalog.load(dir_from_raw)
->>> # dir_from_reduced = '/Volumes/TOSHIBA/starcatalogs/reduced/hygv35/res5/' # Path of the reduced starcatalog
+>>> # dir_from_reduced = 'starcatalogs/reduced/hygv35/res5/' # Path of the reduced starcatalog
 >>> # hygv35_reduced = StarCatalog.load(dir_from_reduced)
 ```
 
@@ -219,7 +219,7 @@ A h5-formatted star catalog indices file is generated, which records the center 
 
 ```python
 >>> from starcatalogquery import StarCatalog
->>> dir_from_simplified = '/Volumes/TOSHIBA/starcatalogs/simplified/hygv35/res5/mag9.0/epoch2022.0/' # Path of the starcatalog
+>>> dir_from_simplified = 'starcatalogs/simplified/hygv35/res5/mag9.0/epoch2022.0/' # Path of the starcatalog
 >>> hygv35_simplified = StarCatalog.load(dir_from_simplified)
 ```
 

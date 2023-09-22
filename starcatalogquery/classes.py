@@ -203,7 +203,7 @@ class StarCatalogRaw(object):
             Instance of class StarCatalogRaw
         """
         if dir_from is None: dir_from = 'starcatalogs/raw/{:s}/res{:d}/'.format(sc_name,tile_size)    
-        if not os.path.exists(dir_from): raise Error('The storage directory for the catalog {:s} does not exist.'.format(sc_name))  
+        if not os.path.exists(dir_from): raise Exception('The storage directory for the catalog {:s} does not exist.'.format(sc_name))  
 
         # calculate total size and numbers of tile files    
         file_num,dir_size,validity = tiles_statistic(dir_from,tile_size) 
