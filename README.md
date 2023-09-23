@@ -225,6 +225,10 @@ A h5-formatted star catalog indices file is generated, which records the center 
 
 ## Change log
 
+- **0.1.12 — Sep 23, 2023**
+  
+  - minor bugs fixed
+
 - **0.1.11 — Sep 04, 2023**
   
   - Adjusted the parameters involved in dividing the celestial sphere into multiple equal-area sky regions using the HEALPix algorithm, as well as the corresponding radius of cone search used for blind matching of star maps.
