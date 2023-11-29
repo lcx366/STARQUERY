@@ -50,7 +50,9 @@ def catalog_download(scname,tile_size=2,dir_to=None):
         if tile_size > 7.5: tile_size = 6 
     elif scname == 'usnob':
         # USNO-B: Astrometric catalog v1.0.
-        tile_size = 2    
+        tile_size = 2 
+    else:
+        raise Exception("Star catalog '{:s}' is not supported.".format(scname))       
 
     # Default directory setup for saving star catalog files
     if dir_to is None:
@@ -120,13 +122,14 @@ def hyg_download(scname,tile_size=2,dir_to=None):
         url = 'https://astronexus.com/downloads/catalogs/hygdata_v37.csv.gz'
         raw_file = 'hygdata_v37.csv'
         desc = "Downloading the HYG v3.7 database '{:s}' from The Astronomy Nexus.".format(raw_file)
-        
-    elif scname == 'at-hygv2.2':    
+    elif scname == 'at-hygv2.4':    
         # URL of the AT-HYG Database
-        url = 'https://www.astronexus.com/downloads/catalogs/athyg_v22.csv.gz'
-        raw_file = 'athyg_v22.csv'
-        desc = "Downloading the AT-HYG v2.2 database '{:s}' from The Astronomy Nexus.".format(raw_file)
-        
+        url = 'https://www.astronexus.com/downloads/catalogs/athyg_v24.csv.gz'
+        raw_file = 'athyg_v24.csv'
+        desc = "Downloading the AT-HYG v2.4 database '{:s}' from The Astronomy Nexus.".format(raw_file)
+    else:
+        raise Exception("For HYG/AT-HYG databases, only 'hygv3.7' and 'at-hygv2.4' are available.")
+               
     # Define the directory and file name for the raw catalog
     raw_dir_to = str(Path.home()) + '/src/starcatalogs/data/'
     raw_dir_file = raw_dir_to + raw_file    

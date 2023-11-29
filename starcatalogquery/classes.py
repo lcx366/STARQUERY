@@ -75,7 +75,7 @@ class StarCatalog(object):
             # Use a specialized method for HYG databases
             dir_to, dir_size, file_num, validity, tile_size = hyg_download(sc_name, tile_size, dir_to)
 
-        else:
+        elif sc_name in ['gsc12', 'gsc242', 'gaiadr3', '2mass', 'ucac5', 'usnob']:
             # General case for other star catalogs
             if dir_to is None:
                 dir_to = 'starcatalogs/raw/{:s}/res{:d}/'.format(sc_name, tile_size)
@@ -87,6 +87,8 @@ class StarCatalog(object):
                 # Download and check catalog if not already present
                 dir_to,tile_size = catalog_download(sc_name,tile_size,dir_to)  
                 dir_to,dir_size,file_num,validity = catalog_check(sc_name,tile_size,dir_to) 
+        else:
+            raise Exception("Star catalog '{:s}' is not supported.".format(sc_name))        
 
         # Gather catalog information
         stars_num,mag,description = starcatalog_info(sc_name)
@@ -624,7 +626,8 @@ class StarCatalogReduced(object):
             Exception: If the specified directory does not exist.
         """
         # Assign default directory if none is provided
-        if dir_from is None: dir_from = 'starcatalogs/reduced/{:s}/res{:d}/'.format(sc_name,tile_size)   
+        if dir_from is None: 
+            dir_from = 'starcatalogs/reduced/{:s}/res{:d}/'.format(sc_name,tile_size)   
 
         # Check if the directory exists, raise an exception if it does not 
         if not os.path.exists(dir_from): raise Exception('Path of the star catalog {:s} does not exist.'.format(sc_name))  
@@ -834,6 +837,7 @@ class StarCatalogSimplified(object):
         return "<StarCatalogSimplified object: CATALOG_NAME = '{:s}' CATALOG_SIZE = '{:s}' TILES_NUM = {:d} TILE_SIZE = '{:s}' STARS_NUM = '{:s}' MAG = '{:s}' MAG_CUTOFF = {:.1f} EPOCH = {:.1f}>".format(
             self.sc_name,self.sc_size,self.tiles_num,self.tile_size,self.stars_num,self.mag,self.mag_threshold,self.epoch)   
 
+    @classmethod
     def load(cls,sc_name,tile_size,mag_threshold,epoch,dir_from=None):
         """
         Load the simplified star catalog files from a specified directory.
@@ -853,7 +857,9 @@ class StarCatalogSimplified(object):
             Exception: If the specified directory does not exist.
         """
         # Assign default directory if none is provided
-        if dir_from is None: dir_from = 'starcatalogs/simplified/{:s}/res{:d}/mag{:.1f}/epoch{:.1f}/'.format(sc_name,tile_size,mag_threshold,epoch)
+        if dir_from is None: 
+            print(sc_name,tile_size,mag_threshold,epoch)
+            dir_from = 'starcatalogs/simplified/{:s}/res{:d}/mag{:.1f}/epoch{:.1f}/'.format(sc_name,tile_size,mag_threshold,epoch)
 
         # Check if the directory exists, raise an exception if it does not
         if not os.path.exists(dir_from): raise Exception('Path of the star catalog {:s} does not exist.'.format(sc_name))  
