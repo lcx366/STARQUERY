@@ -265,6 +265,9 @@ This process ensures quick and efficient access to the star catalog data.
 
 ## Change log
 
+- **0.1.14 — Nov 29, 2023**
+  - Minor bugs fixed.
+
 - **0.1.13 — Nov 26, 2023**
   
   - Added the capability to download, load, and simplify the *AT-HYGv2.4* star catalog.

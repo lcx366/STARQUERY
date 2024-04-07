@@ -31,8 +31,8 @@ def catalog_download(scname,tile_size=2,dir_to=None):
     """  
 
     # Validate tile size for compatibility with celestial sphere division
-    if tile_size not in [1, 2, 3, 5, 6, 9, 10]: 
-        raise Exception('Tile size must be in [1, 2, 3, 5, 6, 9, 10] degrees')      
+    if tile_size not in [1, 2, 3, 4, 5, 6, 9, 10]: 
+        raise Exception('Tile size must be in [1, 2, 3, 4, 5, 6, 9, 10] degrees')      
 
     # Handling different star catalogs and their respective tile sizes
     if scname == 'gsc12':
@@ -114,8 +114,8 @@ def hyg_download(scname,tile_size=2,dir_to=None):
         tile_size -> [int] Size of each tile in degrees.
     """
     # Validate tile size for compatibility with celestial sphere division.
-    # N = 180//tile_size must be even.
-    if tile_size not in [1,2,3,5,6,9,10]: raise Exception('Tile size must be in [1,2,3,5,6,9,10] degrees')  
+    # N = 180//tile_size must be integer.
+    if tile_size not in [1,2,3,4,5,6,9,10]: raise Exception('Tile size must be in [1,2,3,4,5,6,9,10] degrees')  
 
     if scname == 'hygv3.7':
         # URL of the HYG Database

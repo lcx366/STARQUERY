@@ -16,7 +16,7 @@ from .utils.df2info import df2info
 from .catalog_query import search_box,search_cone,search_box_magpm,search_cone_magpm,box2seqs,cone2seqs,_load_files
 from .tiles_draw import search_draw
 from .wcs import xy_catalog
-from .invariantfeatures import _generate_invariants
+from .invariantfeatures import unique_triangles
 
 def solidangle_ratio(fov, r):
     """
@@ -369,7 +369,7 @@ class StarCatalogRaw(object):
 
         return StarCatalogReduced(info)  
     
-    def search_box(self,radec_box,mag_threshold,t_pm,max_num=None):
+    def search_box(self,radec_box,mag_threshold,t_pm,max_num=None,max_num_per_tile=None):
         """
         Perform a rectangle search of stars on raw star catalogs.
 
@@ -398,7 +398,7 @@ class StarCatalogRaw(object):
         sc_indices = box2seqs(radec_box,tile_size) 
 
         # Loading data from relevant tiles and concatenating them into a DataFrame
-        df = pd.concat(_load_files(sc_indices,sc_path,sc_name,self._mode))
+        df = pd.concat(_load_files(sc_indices,sc_path,sc_name,self._mode,max_num_per_tile))
 
         if sc_name in ['hygv3.7','at-hygv2.4']:
             df['ra'] = (df['ra'].astype(float)*15).round(6) # Convert hourangle to deg
@@ -454,7 +454,7 @@ class StarCatalogRaw(object):
         info = df2info(self.sc_name,center,df,max_num,radec_box,'BOX') 
         return Stars(info)
 
-    def search_cone(self,center,radius,mag_threshold,t_pm,max_num=None):
+    def search_cone(self,center,radius,mag_threshold,t_pm,max_num=None,max_num_per_tile=None):
         """
         Perform a cone search of stars on raw star catalogs.
 
@@ -483,7 +483,7 @@ class StarCatalogRaw(object):
         sc_indices = cone2seqs(ra_c,dec_c,radius,tile_size) 
 
         # Loading data from relevant tiles and concatenating them into a DataFrame
-        df = pd.concat(_load_files(sc_indices,sc_path,sc_name,self._mode))
+        df = pd.concat(_load_files(sc_indices,sc_path,sc_name,self._mode,max_num_per_tile))
 
         if sc_name in ['hygv3.7','at-hygv2.4']:
             df['ra'] = (df['ra'].astype(float)*15).round(6) # Convert hourangle to deg
@@ -714,7 +714,7 @@ class StarCatalogReduced(object):
 
         return StarCatalogSimplified(info)    
 
-    def search_box(self,radec_box,mag_threshold,t_pm,max_num=None):
+    def search_box(self,radec_box,mag_threshold,t_pm,max_num=None,max_num_per_tile=None):
         """
         Perform a rectangle search of stars on reduced star catalogs.
 
@@ -740,11 +740,11 @@ class StarCatalogReduced(object):
         tile_size = int(self.tile_size.split()[0])
 
         # Performs a rectangular search on the reduced star catalog considering magnitude and proper motion.
-        df = search_box_magpm(radec_box,self.tiles_dir,self.sc_name,tile_size,mag_threshold,t_pm)
+        df = search_box_magpm(radec_box,self.tiles_dir,self.sc_name,tile_size,mag_threshold,t_pm,max_num_per_tile)
         info = df2info(self.sc_name,center,df,max_num,radec_box,'BOX') 
         return Stars(info)
 
-    def search_cone(self,center,radius,mag_threshold,t_pm,max_num=None):   
+    def search_cone(self,center,radius,mag_threshold,t_pm,max_num=None,max_num_per_tile=None):   
         """
         Perform a cone search of stars on reduced star catalogs.
 
@@ -767,7 +767,7 @@ class StarCatalogReduced(object):
         tile_size = int(self.tile_size.split()[0])
 
         # Performs a conical search of stars on the reduced star catalog considering magnitude and proper motion.
-        df = search_cone_magpm(center,radius,self.tiles_dir,self.sc_name,tile_size,mag_threshold,t_pm)
+        df = search_cone_magpm(center,radius,self.tiles_dir,self.sc_name,tile_size,mag_threshold,t_pm,max_num_per_tile)
         info = df2info(self.sc_name,center,df,max_num,radius,'CONE') 
         return Stars(info)
 
@@ -874,7 +874,7 @@ class StarCatalogSimplified(object):
 
         return cls(info)   
 
-    def search_box(self,radec_box,max_num=None):
+    def search_box(self,radec_box,max_num=None,max_num_per_tile=None):
         """
         Perform a rectangle search of stars on simplified star catalogs.
 
@@ -898,11 +898,11 @@ class StarCatalogSimplified(object):
         tile_size = int(self.tile_size.split()[0])
 
         # Performs a rectangular search on the simplified star catalog without considering magnitude and proper motion.
-        df = search_box(radec_box,self.tiles_dir,self.sc_name,tile_size) 
+        df = search_box(radec_box,self.tiles_dir,self.sc_name,tile_size,max_num_per_tile) 
         info = df2info(self.sc_name,center,df,max_num,radec_box,'BOX') 
         return Stars(info)
 
-    def search_cone(self,center,radius,max_num=None):   
+    def search_cone(self,center,radius,max_num=None,max_num_per_tile=None):   
         """
         Perform a cone search of stars on simplified star catalogs.
 
@@ -923,7 +923,7 @@ class StarCatalogSimplified(object):
         tile_size = int(self.tile_size.split()[0])
 
         # Performs a cone search on the simplified star catalog without considering magnitude and proper motion.
-        df = search_cone(center,radius,self.tiles_dir,self.sc_name,tile_size)
+        df = search_cone(center,radius,self.tiles_dir,self.sc_name,tile_size,max_num_per_tile)
         info = df2info(self.sc_name,center,df,max_num,radius,'CONE') 
         return Stars(info)
 
@@ -1129,7 +1129,7 @@ class Stars(object):
         if not hasattr(self,'xy'): 
             raise Exception("The pixel coordinates of stars should be caiculated first by `.pixel_xy(pixel_width`)")
         # Derive unique geometric invariants    
-        inv_uniq, triang_vrtx_uniq = _generate_invariants(self.xy)
+        inv_uniq, triang_vrtx_uniq = unique_triangles(self.xy)
         # Construct a KDTree structure using the unique invariants
         inv_uniq_tree = KDTree(inv_uniq)
         self.invariants,self.asterisms,self.kdtree = inv_uniq,triang_vrtx_uniq,inv_uniq_tree
