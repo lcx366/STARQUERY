@@ -1,68 +1,43 @@
 import os
+import math
 import numpy as np
 import pandas as pd
 from astropy.coordinates import SkyCoord
 
-def from_cap(theta, clat, clon, lmax):
+def from_cap(grid_size, clat, clon, theta):
     """
-    Creates a mask for a spherical cap on a grid.
+    Determines which points in a grid are inside a cone on the surface of a sphere.
 
     Usage:
-        >>> mask_cap = from_cap(theta,clat,clon,lmax)
+        >>> mask_cap = from_cap(grid_size, clat, clon, theta)
     Inputs:
+        rid_size -> [int] The grid size in degrees.
+        clat -> [float] The latitude of the cap center in degrees.
+        clon -> [float] The longitude of the cap center in degrees.
         theta -> [float] Angular radius of the spherical cap in degrees.
-        clat -> [float] Latitude of the center of the spherical cap in degrees.
-        clon -> [float] Longitude of the center of the spherical cap in degrees.
-        lmax -> [int] Maximum spherical harmonic degree resolvable by the grid.
     Outputs:
-        mask_cap -> [2D array-like] A grid mask with the spherical cap area masked.
+        mask_cap -> [2D array-like] A 2D boolean array representing the grid. 
+        Each element is True if the corresponding grid point is inside the cone, and False otherwise.
     """
+    # Generate grid points. Latitude ranges from 90 to -90, and longitude from 0 to 360.
+    lat_points = np.arange(90, -90, -grid_size)
+    lon_points = np.arange(0, 360, grid_size)
+    grid_lat, grid_lon = np.meshgrid(lat_points, lon_points, indexing='ij')
 
-    # Calculate the grid size based on lmax
-    step = 90 / (lmax + 1)
+    # Convert the cap center coordinates and grid points to radians for calculation.
+    clat_rad = math.radians(clat)
+    clon_rad = math.radians(clon)
     
-    # Generate arrays of latitudes and longitudes based on the grid size
-    lats = np.deg2rad(np.arange(90, -90, -step))
-    lons = np.deg2rad(np.arange(0, 360, step))
-    
-    # Initialize an array to represent the grid mask
-    nlat, nlon = len(lats), len(lons)
-    mask_cap = np.zeros((nlat, nlon))
+    # Calculate the angular distance between the cap center and each grid point.
+    angular_distance_cos = \
+    np.sin(clat_rad) * np.sin(np.radians(grid_lat)) + \
+    np.cos(clat_rad) * np.cos(np.radians(grid_lat)) * \
+    np.cos(np.radians(grid_lon) - clon_rad)
 
-    # Convert angular parameters to radians
-    theta = np.deg2rad(theta)
-    clat = np.deg2rad(clat)
-    clon = np.deg2rad(clon)
+    # Determine whether each grid point is inside the cap.
+    inside_cone = angular_distance_cos >= np.cos(np.deg2rad(theta))
 
-    # Identify the index range for latitudes within the cap
-    imin, imax = np.inf, 0
-    for i, lat in enumerate(lats):
-        if lat <= clat + theta:
-            imin = min(imin, i)
-        if lat >= clat - theta:
-            imax = max(imax, i)
-
-    # Calculate cartesian coordinates for the cap center
-    x = np.cos(clat) * np.cos(clon)
-    y = np.cos(clat) * np.sin(clon)
-    z = np.sin(clat)
-
-    # Precompute cosine and sine for longitudes
-    coslon = np.cos(lons)
-    sinlon = np.sin(lons)
-    costheta = np.cos(theta)
-
-    # Iterate over the grid and set values within the cap
-    for i in range(imin, imax + 1):
-        coslat = np.cos(lats[i])
-        sinlat = np.sin(lats[i])
-        for j in range(nlon):
-            # Calculate the angular distance to the cap center
-            dist = coslat * (x * coslon[j] + y * sinlon[j]) + z * sinlat
-            # Mark points within the cap
-            if dist >= costheta: mask_cap[i, j] = 1
-
-    return mask_cap
+    return inside_cone    
 
 def seq2radec(seq, tile_size):
     """
@@ -162,16 +137,13 @@ def cone2seqs(ra_c, dec_c, radius, tile_size):
     count_lon = 360 // tile_size
 
     # Increase the radius slightly to ensure complete coverage
-    radius += tile_size * 1.5
+    radius += tile_size * 1.2
 
-    # Determine the grid resolution
-    N = int(180 / tile_size)
-    if N % 2:
-        raise Exception('tile_size must ensure 180/tile_size is even.')
+    if 180 % tile_size:
+        raise Exception('180/tile_size must be integer.')
 
     # Calculate mask for the spherical cap
-    L = int(N / 2) - 1
-    mask_cap = from_cap(radius, dec_c, ra_c, L)
+    mask_cap = from_cap(tile_size, dec_c, ra_c, radius)
 
     # Find indices within the masked area
     dec_index, ra_index = np.where(mask_cap)
@@ -181,7 +153,7 @@ def cone2seqs(ra_c, dec_c, radius, tile_size):
 
     return seqs  
 
-def _load_files(sc_indices, sc_path, sc_name, _mode):
+def _load_files(sc_indices, sc_path, sc_name, _mode, max_num_per_tile=None):
     """
     Generator function for loading multiple star catalog tile files.
 
@@ -206,9 +178,15 @@ def _load_files(sc_indices, sc_path, sc_name, _mode):
         # Check if file is large enough to be non-empty (arbitrary threshold set at 25 bytes)
         if os.path.getsize(filename) > 25:
             # Yield a DataFrame for each non-empty file
-            yield pd.read_csv(filename, skiprows=skiprows, dtype=str)
+            df = pd.read_csv(filename, skiprows=skiprows, dtype=str)
+            if max_num_per_tile is None:
+                yield df
+            else:    
+                df['mag'] = pd.to_numeric(df['mag'])
+                df_sorted = df.sort_values(by='mag').head(max_num_per_tile)
+                yield df_sorted
 
-def search_box_magpm(radec_box, sc_path, sc_name, tile_size, mag_threshold, t_pm):
+def search_box_magpm(radec_box, sc_path, sc_name, tile_size, mag_threshold, t_pm,max_num_per_tile=None):
     """
     Performs a rectangular search on the reduced star catalog considering magnitude and proper motion.
 
@@ -231,7 +209,7 @@ def search_box_magpm(radec_box, sc_path, sc_name, tile_size, mag_threshold, t_pm
     sc_indices = box2seqs(radec_box, tile_size)
 
     # Concatenate data from relevant tile files
-    df = pd.concat(_load_files(sc_indices, sc_path, sc_name,'reduced'))
+    df = pd.concat(_load_files(sc_indices, sc_path, sc_name,'reduced',max_num_per_tile))
     
     # Remove duplicate entries based on RA and DEC
     df.drop_duplicates(subset=['ra', 'dec'], inplace=True)
@@ -268,7 +246,7 @@ def search_box_magpm(radec_box, sc_path, sc_name, tile_size, mag_threshold, t_pm
     
     return df.reset_index(drop=True)
 
-def search_cone_magpm(center, radius, sc_path, sc_name, tile_size, mag_threshold, t_pm):
+def search_cone_magpm(center, radius, sc_path, sc_name, tile_size, mag_threshold, t_pm,max_num_per_tile=None):
     """
     Performs a conical search of stars on the reduced star catalog considering magnitude and proper motion.
 
@@ -292,7 +270,7 @@ def search_cone_magpm(center, radius, sc_path, sc_name, tile_size, mag_threshold
     sc_indices = cone2seqs(ra_c, dec_c, radius, tile_size)
 
     # Load and concatenate data from relevant tile files
-    df = pd.concat(_load_files(sc_indices, sc_path, sc_name, 'reduced'))
+    df = pd.concat(_load_files(sc_indices, sc_path, sc_name,'reduced',max_num_per_tile))
 
     # Remove duplicate entries based on RA and DEC
     df.drop_duplicates(subset=['ra', 'dec'], inplace=True)
@@ -325,7 +303,7 @@ def search_cone_magpm(center, radius, sc_path, sc_name, tile_size, mag_threshold
 
     return df.reset_index(drop=True)  
 
-def search_box(radec_box, sc_path, sc_name, tile_size):
+def search_box(radec_box, sc_path, sc_name, tile_size,max_num_per_tile=None):
     """
     Performs a rectangular search on the simplified star catalog without considering magnitude and proper motion.
 
@@ -343,7 +321,7 @@ def search_box(radec_box, sc_path, sc_name, tile_size):
     sc_indices = box2seqs(radec_box, tile_size)
 
     # Load and concatenate data from tile files
-    df = pd.concat(_load_files(sc_indices, sc_path, sc_name, 'simplified'))
+    df = pd.concat(_load_files(sc_indices, sc_path, sc_name,'simplified',max_num_per_tile))
 
     # Remove duplicates and convert coordinates to numeric
     df.drop_duplicates(subset=['ra', 'dec'], inplace=True)
@@ -357,7 +335,7 @@ def search_box(radec_box, sc_path, sc_name, tile_size):
 
     return df.reset_index(drop=True)
 
-def search_cone(center, radius, sc_path, sc_name, tile_size):
+def search_cone(center, radius, sc_path, sc_name, tile_size,max_num_per_tile=None):
     """
     Performs a cone search on the simplified star catalog without considering magnitude and proper motion.
 
@@ -377,7 +355,7 @@ def search_cone(center, radius, sc_path, sc_name, tile_size):
     sc_indices = cone2seqs(ra_c, dec_c, radius, tile_size)
 
     # Load and concatenate data from relevant tile files
-    df = pd.concat(_load_files(sc_indices, sc_path, sc_name, 'simplified'))
+    df = pd.concat(_load_files(sc_indices, sc_path, sc_name,'simplified',max_num_per_tile))
     df.drop_duplicates(subset=['ra', 'dec'], inplace=True)
     df[['ra', 'dec', 'mag']] = df[['ra', 'dec', 'mag']].apply(pd.to_numeric)
 
