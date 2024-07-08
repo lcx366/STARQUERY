@@ -25,21 +25,12 @@ pip install starcatalogquery
 pip install starcatalogquery --upgrade # to upgrade a pre-existing installation
 ```
 
-### Dependencies
+If an error message similar to "`ERROR: Could not build wheels for cartopy, which is required to install pyproject.toml-based projects`" is displayed, a good solution is
 
-STARQUERY relies on several external libraries and packages to function optimally. Below is a list of these dependencies with a brief description of their role in the project:
-
-#### healpy
-
-It is a Python package to handle pixelated data on the sphere. It is based on HEALPix (Hierarchical Equal Area isoLatitude Pixelization), a versatile scheme used for the pixelization of data on the sphere. In STARQUERY, healpy is primarily used for dividing the celestial sphere into multiple equal-area sky regions, a critical step in the blind matching of star maps.
-
-*healpy* can be easily installed via pip. Run the following command to install:
-
+```bash
+mamba install h5py
+mmaba install cartopy 
 ```
-pip install healpy
-```
-
-For more information on healpy and its functionalities, refer to the [healpy documentation](https://healpy.readthedocs.io/en/latest/).
 
 ## How to use
 
