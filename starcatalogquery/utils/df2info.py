@@ -1,28 +1,35 @@
 import numpy as np
 
-def df2info(sc_name, center, df, max_control_points, search_area, mode):
+def df2info(sc_name, center, df, max_control_points, level, nside, pixels_ids, pixel_size, search_area, fov_min):
     """
-    Extracts information from a specific DataFrame and generates a dictionary with star catalog data.
+    Extracts information from a star catalog dataFrame.
 
     Usage:
-        >>> info = df2info(sc_name, center, df, max_control_points, search_area, mode)
+        >>> info = df2info(sc_name, center, df, max_control_points, level, nside, pixels_ids, pixel_size, search_area, fov_min)
     Inputs:
-        sc_name -> [str] Name of the star catalog.
-        center -> [tuple] The central coordinates of the search area in the form (Ra, Dec), where Ra is Right Ascension and Dec is Declination, both in degrees.
-        df -> The DataFrame containing star data.
+        sc_name -> [str] Name of the star catalog, e.g. 'gaiadr3'.
+        center -> [tuple] The central coordinates of the search area in form of (Ra, Dec), where Ra is Right Ascension and Dec is Declination, both in degrees.
+        df -> [Pandas dataframe] The star catalog data frame.
         max_control_points -> [int] Maximum number of stars to consider in the search, e.g., the top 100 brightest stars.
-        search_area -> [float or tuple] The area of the sky being searched. For cone search, it represents the search radius; for box search, it denotes the rectangular range.
-        mode -> [str] The search mode, either 'cone' or 'box'.
+        level -> [str] Partition level, such as 'K4'. It indicates the hierarchical level of the HEALPix partitioning.
+        nside -> [int] The number of divisions along the side of a HEALPix base pixel. It determines the resolution of the HEALPix grid.
+        pixels_ids -> [array-like] The HEALPix pixel IDs covering the search area.
+        pixel_size -> [float] Approximate size of each pixel in degrees.
+        search_area -> [dict] The area of the sky being searched. For cone search, it denotes the center and search radius; for box search, it denotes the rectangular range.
+        fov_min -> [float] Field of view parameters in degrees from which the HEALPix parameters are determined.
     Outputs:
-        info -> [dict] A dictionary containing extracted star data and metadata.
+        info -> [dict] A dictionary containing the metadata and star data(Ra,Dec,Mag) extracted from the star catalog data frame.
     """
-    
+
     # Determine the number of stars to consider
     num_stars = len(df)
-    if max_control_points is None or max_control_points > num_stars: 
+    if max_control_points is None or max_control_points > num_stars:
         max_control_points = num_stars
     else:
-        df = df[:max_control_points]  # Limit the DataFrame to the specified maximum number of stars
+        df = df[:max_control_points].copy()  # Limit the DataFrame to the specified maximum number of stars
+
+    # Remove duplicate stars based on 'ra' and 'dec' to avoid considering variable stars
+    df.drop_duplicates(subset=['ra', 'dec'], keep=False, inplace=True)
 
     # Extract RA, Dec, and magnitude values from the DataFrame
     ra, dec = df['ra'].values, df['dec'].values
@@ -34,12 +41,16 @@ def df2info(sc_name, center, df, max_control_points, search_area, mode):
         'sc_name': sc_name,
         'num_stars': num_stars,
         'df': df,
-        'center': center,
         'radec': radec,
         'mag': mag,
         'max_control_points': max_control_points,
+        'center': center,
+        'level': level,
+        'nside': nside,
+        'tiles_ids': pixels_ids,
+        'tile_size': '{:.2f} deg'.format(pixel_size),
         'search_area': search_area,
-        'mode': mode
-    }   
+        '_fov_min': fov_min
+    }
 
     return info

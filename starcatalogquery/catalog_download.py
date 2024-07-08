@@ -1,184 +1,107 @@
 import os
 import numpy as np
+import healpy as hp
 import pandas as pd
-from pathlib import Path
 from gzip import GzipFile
 
 from .utils.try_download import wget_download
 from .utils.starcatalog_statistic import tiles_statistic
 
-def catalog_download(scname,tile_size=2,dir_to=None):
+NSIDE = 16  # Default HEALPix partition level, corresponding to K=4 (2^K=NSIDE)
+
+def stsci_download(sc_name, dir_to, url_file):
     """
-    Download star catalog tile files from https://outerspace.stsci.edu/display/GC.
-    The celestial sphere is divided into multiple 'tiles', each representing a small sky region.
-    This script downloads the tile files for a specified star catalog (e.g., GAIA DR3, UCAC5, 2MASS).
+    Downloads star catalog tile files, each representing a region of the sky.
+    This function supports downloading files for different catalogs such as GAIA DR3, GSC30, UCAC5, USNOB, or 2MASS.
 
-    Usage: 
-        >>> dir_to,tile_size = catalog_download('gsc12')
+    Usage:
+        >>> sc_name = 'gaiadr3'
+        >>> dir_to = 'starcatalogs/raw/gaiadr3/'
+        >>> url_file = 'starcatalogs/url/gaiadr3.txt'
+        >>> stsci_download(sc_name, dir_to, url_file)
     Inputs:
-        scname -> [str] Name of the star catalog to download(e.g., 'gsc12', '2mass', 'gaiadr3', 'ucac5', 'usnob').
-        tile_size -> [int, optional, default=2] Size of each tile in degrees.
-        dir_to -> [str, optional, default=None] Download path of the star catalog.
-    Outputs: 
-        dir_to -> [str] Path where the star catalog tile files are stored. If None, defaults to 'starcatalogs/raw/<scname>/res<x>/', where
-            - 'raw' indicates the original star catalog, relative to the reduced and simplified star catalog later.
-            - '<scname>' is the catalog name.
-            - '<x>' is the tile size in degrees.
-        tile_size -> [int] Size of each tile in degrees.
+        sc_name -> [str] Star catalog to download (e.g., 'gaiadr3', 'gsc30', 'ucac5', 'usnob', '2mass').
+        dir_to -> [str] Directory for storing the star catalog files.
+        url_file -> [str] URL file for downloading star catalog.
+    Outputs:
+        star catalog tile files
+    """
 
-    Note: The download path should not contain spaces to prevent issues in command line operations. 
-    For example, a path like '/Volumes/TOSHIBA EXT/StarCatalog/' may cause problems due to the space in 'TOSHIBA EXT'.
-    """  
+    # Create the directory for tiles if it doesn't exist
+    os.makedirs(dir_to, exist_ok=True)
 
-    # Validate tile size for compatibility with celestial sphere division
-    if tile_size not in [1, 2, 3, 4, 5, 6, 9, 10]: 
-        raise Exception('Tile size must be in [1, 2, 3, 4, 5, 6, 9, 10] degrees')      
+    npix = hp.nside2npix(NSIDE)  # Calculate the number of pixels for the given NSIDE
 
-    # Handling different star catalogs and their respective tile sizes
-    if scname == 'gsc12':
-        # GSC-I: Contains approximately 20,000,000 stars with magnitudes of 6 to 15.
-        if tile_size > 7.5: tile_size = 6    
-    elif scname in ['gsc242','2mass']:
-        # GSC-II: Current version for HST & JWST operations 2021- TBD, with 945,592,683 stars.
-        # 2MASS: All-Sky IR survey Point Source Catalog.
-        if tile_size > 5: tile_size = 5
-    elif scname == 'gaiadr3':
-        # GAIA DR3: Astrometric catalog of stellar positions and proper motions.
-        tile_size = 1 
-    elif scname == 'ucac5':
-        # UCAC5: USNO CCD Astrograph Catalog v5.
-        if tile_size > 7.5: tile_size = 6 
-    elif scname == 'usnob':
-        # USNO-B: Astrometric catalog v1.0.
-        tile_size = 2 
-    else:
-        raise Exception("Star catalog '{:s}' is not supported.".format(scname))       
+    print(f'Generating URL list file with {npix} entries.')
 
-    # Default directory setup for saving star catalog files
-    if dir_to is None:
-        dir_to = 'starcatalogs/raw/{:s}/res{:d}/'.format(scname, tile_size)
-        # 'raw' indicates original star catalog, '<scname>' is catalog name, '<resx>' is tile size.
-    if not os.path.exists(dir_to):
-        os.makedirs(dir_to)
-
-    # Generating URLs for downloading the catalog files
-    print('Generating the URL list for {:s}'.format(scname), end='...')  
-    k = 0
-    n_lat, n_lon = 180 // tile_size, 360 // tile_size  # Latitude and longitude divisions based on tile size
-
-    url_file = 'url_{:s}.txt'.format(scname)  # Filename for storing URLs
     with open(url_file, 'w') as f:
-        for i in range(n_lat):    
-            for j in range(n_lon):
-                # Calculate tile boundaries
-                codec_min = tile_size * i
-                codec_max = tile_size * (i + 1)
-                dec_min = 90 - codec_max
-                dec_max = 90 - codec_min
-                ra_min = tile_size * j
-                ra_max = tile_size * (j + 1)
+        for k in range(npix):
+            corners_vec = hp.boundaries(NSIDE, k)  # Get vector boundaries of each HEALPix pixel
+            corners_lonlat = hp.vec2ang(np.transpose(corners_vec),lonlat=True)  # Convert vectors to longitudes and latitudes
+            polygon_coords = ','.join(f"{lon} {lat}" for lon, lat in zip(*corners_lonlat))
+            url = f'https://gsss.stsci.edu/webservices/vo/CatalogSearch.aspx?STCS=POLYGON {polygon_coords}&format=csv&catalog={sc_name}'
+            file_path = os.path.join(dir_to, f"{sc_name}-{k}.csv")
+            f.write(f"'{file_path}' '{url}'\n")  # Write URL to file
 
-                # Construct and write URL for each tile
-                url = 'http://gsss.stsci.edu/webservices/vo/CatalogSearch.aspx?bbox={:d},{:d},{:d},{:d}&format=csv&catalog={:s}'.format(ra_min,dec_min,ra_max,dec_max,scname)
-                f.write(dir_to + '{:s}-{:d}.csv {:s}\n'.format(scname,k,url))
-                k += 1
-    print('URL list generated with {} entries.'.format(k))
-               
-    # Start downloading the catalog tile files using 16 threads
-    print('Downloading the catalog tile files for {:s}'.format(scname),end = '...')  
-    os.system('cat url_{:s}.txt | xargs -P 16 -n 2 wget -c -O'.format(scname))
-    print('Finished')  
-    # Clean up by removing the URL file after downloading is complete
-    os.remove(url_file)
+    print(f'Downloading the catalog tile files for {sc_name} ...')
+    os.system(f"cat '{url_file}' | xargs -P 16 -n 2 wget -c -O")
+    print('Download complete.')
 
-    return dir_to,tile_size  
 
-def hyg_download(scname,tile_size=2,dir_to=None):
+def hyg_download(sc_name, dir_to):
     """
-    Downloads the HYG and AT-HYG databases from Astronexus(https://www.astronexus.com/hyg), and converts it to a tile-based format. 
-    The tile-based format divides the celestial sphere into smaller regions for easier handling and analysis.
+    Downloads and converts HYG and AT-HYG databases into a tile-based format for easier handling.
 
-    Usage: 
-        >>> dir_to,dir_size,file_num,validity,tile_size = hyg_download(5)
     Inputs:
-        scname -> [str] Name of the star catalog to download. Available options include
-            -  'hygv3.7': Current version, containing all stars in Hipparcos, Yale Bright Star, and Gliese catalogs (almost 120,000 stars, 14 MB)
-            -  'at-hygv2.2': Current version, containing all valid stars in Tycho-2, with Gaia DR3 distances when available, as well as many fields from HYG for stars that have either HIP or Henry Draper IDs (2.55 million stars, 200 MB).
-        tile_size -> [int,optinal,default=2] Size of each tile in degrees.
-        dir_to -> [str,optional,default=None] Path where the star catalog is saved. Defaults to 'starcatalogs/raw/hygv37/res<x>/', where '<x>' is the tile size in degrees.
-    Outputs: 
-        dir_to -> [str] Path of the star catalog tile files. 
-        dir_size -> [float] Size of the star catalog.
-        file_num -> [int] Total number of tile files.
-        validity -> [bool] Boolean indicating the validity of the star catalog.
-        tile_size -> [int] Size of each tile in degrees.
+        sc_name -> [str] Name of the star catalog to download (e.g., 'hyg37' or 'at-hyg24').
+        dir_to -> [str] Directory for storing the star catalog files.
+    Outputs:
+        dir_size -> [str] Total size of the star catalog.
+        file_num -> [int] Number of the tile files.
+        validity -> [bool] Validity of the star catalog.
     """
-    # Validate tile size for compatibility with celestial sphere division.
-    # N = 180//tile_size must be integer.
-    if tile_size not in [1,2,3,4,5,6,9,10]: raise Exception('Tile size must be in [1,2,3,4,5,6,9,10] degrees')  
+    # Create the directory for tiles if it doesn't exist
+    os.makedirs(dir_to, exist_ok=True)
 
-    if scname == 'hygv3.7':
-        # URL of the HYG Database
-        url = 'https://astronexus.com/downloads/catalogs/hygdata_v37.csv.gz'
-        raw_file = 'hygdata_v37.csv'
-        desc = "Downloading the HYG v3.7 database '{:s}' from The Astronomy Nexus.".format(raw_file)
-    elif scname == 'at-hygv2.4':    
-        # URL of the AT-HYG Database
-        url = 'https://www.astronexus.com/downloads/catalogs/athyg_v24.csv.gz'
-        raw_file = 'athyg_v24.csv'
-        desc = "Downloading the AT-HYG v2.4 database '{:s}' from The Astronomy Nexus.".format(raw_file)
+    catalog_info = {
+        'hyg37': ('https://astronexus.com/downloads/catalogs/hygdata_v37.csv.gz', 'hygdata_v37.csv'),
+        'at-hyg24': ('https://www.astronexus.com/downloads/catalogs/athyg_v24.csv.gz', 'athyg_v24.csv')
+    }
+
+    url, raw_file = catalog_info[sc_name]
+    raw_dir_to = os.path.expanduser('~/src/starcatalogs/data/')
+    raw_file_path = os.path.join(raw_dir_to, raw_file)
+    raw_file_gz = os.path.join(raw_dir_to, os.path.basename(url))
+
+    os.makedirs(raw_dir_to, exist_ok=True)  # Ensure the directory exists
+
+    if not os.path.exists(raw_file_path):
+        desc = f"Downloading {sc_name} from {url}"
+        wget_out = wget_download(url, raw_file_gz, desc)
+        with GzipFile(raw_file_gz) as gz:
+            with open(raw_file_path, "wb") as f:
+                f.write(gz.read())
+        os.remove(raw_file_gz)
     else:
-        raise Exception("For HYG/AT-HYG databases, only 'hygv3.7' and 'at-hygv2.4' are available.")
-               
-    # Define the directory and file name for the raw catalog
-    raw_dir_to = str(Path.home()) + '/src/starcatalogs/data/'
-    raw_dir_file = raw_dir_to + raw_file    
-    raw_dir_file_gz = raw_dir_to + url.split('/')[-1]
+        print(f"Catalog file {raw_file} already present in {raw_dir_to}")
 
-    # Create the directory if it doesn't exist and download the catalog if not already present
-    if not os.path.exists(raw_dir_to): os.makedirs(raw_dir_to)
-    if not os.path.exists(raw_dir_file):
-        wget_out = wget_download(url,raw_dir_file_gz,desc)
-        g_file = GzipFile(wget_out)
-        open(raw_dir_file, "wb").write(g_file.read())
-        g_file.close()
-        os.remove(wget_out) 
-    else:
-        print("Star catalog file '{:s}' is already in {:s}".format(raw_file,raw_dir_to)) 
+    # Dividing the downloaded star catalog into tiles
+    print('Dividing the star catalog into tiles ...')
+    df = pd.read_csv(raw_file_path, skiprows=[1], dtype=str)  # Skip the sun
+    ra, dec = df['ra'].astype(float) * 15, df['dec'].astype(float)  # Convert RA to degrees and get DEC
+    pixels = hp.ang2pix(NSIDE, ra, dec, lonlat=True)  # Calculate HEALPix pixel number for each star
+    df['pixel'] = pixels  # Add pixel numbers as a new column in the DataFrame
 
-    # Dividing the star catalog into tiles
-    print('Dividing the star catalog into tiles',end='...')
-    if dir_to is None:
-        dir_to = 'starcatalogs/raw/{:s}/res{:d}/'.format(scname,tile_size)  
-    Path(dir_to).mkdir(parents=True, exist_ok=True) 
+    # Group stars by HEALPix pixel and save to separate CSV files
+    for pixel_number, group in df.groupby('pixel'):
+        tile_file = dir_to + '{:s}-{:d}.csv'.format(sc_name, pixel_number)
+        with open(tile_file, 'w') as fn:
+            fn.write('#Objects found: {:d}\n'.format(len(group)))
+        group.to_csv(tile_file, mode='a', index=False, header=True)
 
-    # Processing the catalog data
-    df = pd.read_csv(raw_dir_file,skiprows=[1],dtype=str) # Skip the sun
-    ra,dec = df['ra'].astype(float)*15,df['dec'].astype(float) # Convert RA to degrees
+    print('Finished processing the catalog.')
 
-    # Latitude and longitude divisions based on tile size
-    count_ra,count_dec = 360//tile_size,180//tile_size
-    # Iterate over each sections and separate the catalog into tiles 
-    for i in range(count_dec):
-        for j in range(count_ra):
-            ra_min,ra_max = tile_size*j,tile_size*(j+1)
-            dec_min,dec_max = 90-tile_size*(i+1),90-i*tile_size
-            
-            # Selecting stars within the current tile
-            ra_flag = np.abs(ra - (ra_min + ra_max)/2) < (ra_max - ra_min)/2
-            dec_flag = np.abs(dec- (dec_min + dec_max)/2) < (dec_max - dec_min)/2
-            
-            flag = ra_flag & dec_flag 
-            df_sec = df[flag]
+    # Make statistics for the tiles
+    file_num, dir_size, validity = tiles_statistic(dir_to)
 
-            # Writing the tile data to a CSV file
-            tile_file = dir_to + '{:s}-{:d}.csv'.format(scname,count_ra * i + j)
-            with open(tile_file, 'w') as fn:
-                fn.write('#Objects found: {:d}\n'.format(len(df_sec)))
-                df_sec.to_csv(fn, index=False)
-    print('Finished processing the catalog.')     
-
-    # Calculating the total size and number of tile files    
-    file_num,dir_size,validity = tiles_statistic(dir_to,tile_size)
-
-    return dir_to,dir_size,file_num,validity,tile_size
+    return dir_size, file_num, validity

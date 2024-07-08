@@ -5,7 +5,8 @@ def wget_download(url, dir_file, desc=None):
     Downloads a file from a given URL using the wget library.
 
     Usage:
-        >>> wget_out = wget_download(url, dir_file, desc)
+        >>> wget_out = wget_download('https://example.com/file.txt', '/path/to/save/file.txt', 'Downloading file.txt')
+
     Inputs:
         url -> [str] URL of the file to be downloaded.
         dir_file -> [str] Path where the downloaded file will be stored.
@@ -22,3 +23,5 @@ def wget_download(url, dir_file, desc=None):
     print()  # Print a newline for better output formatting
 
     return wget_out
+
+

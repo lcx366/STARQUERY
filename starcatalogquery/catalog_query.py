@@ -1,224 +1,379 @@
 import os
-import math
 import numpy as np
 import pandas as pd
-from astropy.coordinates import SkyCoord
+import healpy as hp
+from astropy.time import Time
 
-def from_cap(grid_size, clat, clon, theta):
+from .catalog_index import find_healpix_level,index_query_sql
+from .utils.math import separation
+from .astrometry_corrections import apply_astrometry_corrections
+
+def create_empty_df(file_path, skip_initial_description=False):
     """
-    Determines which points in a grid are inside a cone on the surface of a sphere.
+    Creates an empty DataFrame using column headers read from a specified file.
 
-    Usage:
-        >>> mask_cap = from_cap(grid_size, clat, clon, theta)
     Inputs:
-        rid_size -> [int] The grid size in degrees.
-        clat -> [float] The latitude of the cap center in degrees.
-        clon -> [float] The longitude of the cap center in degrees.
-        theta -> [float] Angular radius of the spherical cap in degrees.
+        file_path -> [str] Path to the CSV file from which to read the column headers.
+        skip_initial_description -> [bool] Indicates whether to skip an initial description line (e.g., for 'raw' mode).
     Outputs:
-        mask_cap -> [2D array-like] A 2D boolean array representing the grid. 
-        Each element is True if the corresponding grid point is inside the cone, and False otherwise.
+        empty_df -> [pd.DataFrame] An empty DataFrame with column names set as per the file's header.
+    Raises:
+        FileNotFoundError: If the specified file does not exist.
+        ValueError: If the file is empty or headers cannot be determined.
     """
-    # Generate grid points. Latitude ranges from 90 to -90, and longitude from 0 to 360.
-    lat_points = np.arange(90, -90, -grid_size)
-    lon_points = np.arange(0, 360, grid_size)
-    grid_lat, grid_lon = np.meshgrid(lat_points, lon_points, indexing='ij')
+    try:
+        # Open the file and read the first line to get the headers
+        with open(file_path, 'r') as file:
+            if skip_initial_description:
+                description = next(file)  # Skip the first line if it's a description
+            header_line = next(file).strip()  # Read the next line as the header
+            headers = header_line.split(',')
+    except FileNotFoundError:
+        raise FileNotFoundError(f"The file at {file_path} does not exist.")
+    except StopIteration:
+        raise ValueError(f"The file at {file_path} is empty or does not have headers.")
 
-    # Convert the cap center coordinates and grid points to radians for calculation.
-    clat_rad = math.radians(clat)
-    clon_rad = math.radians(clon)
-    
-    # Calculate the angular distance between the cap center and each grid point.
-    angular_distance_cos = \
-    np.sin(clat_rad) * np.sin(np.radians(grid_lat)) + \
-    np.cos(clat_rad) * np.cos(np.radians(grid_lat)) * \
-    np.cos(np.radians(grid_lon) - clon_rad)
+    # Create and return an empty DataFrame with these headers
+    return pd.DataFrame(columns=headers)
 
-    # Determine whether each grid point is inside the cap.
-    inside_cone = angular_distance_cos >= np.cos(np.deg2rad(theta))
-
-    return inside_cone    
-
-def seq2radec(seq, tile_size):
+def _load_files(K4_indices_list, dir_sc, sc_name, _mode, max_num_per_tile=None):
     """
-    Converts tile file indices to spherical rectangles (RA and DEC coordinates).
+    Generator function that yields star catalog data from specified files and rows based on HEALPix indices.
 
-    Usage:
-        >>> radec_box,box_center = seq2radec(100,3)
-        >>> # radec_box,box_center = seq2radec([120,130],5)
     Inputs:
-        seq -> [int,array-like] Index or indices of the star catalog tile file.
-        tile_size -> [int] Size of the tile in degrees.
+        K4_indices_list -> [list] Each sublist contains tuples of (file index, [row indices]) specifying which rows to load from each file group.
+        dir_sc -> [str] Directory where the star catalog files are stored.
+        sc_name -> [str] Base name of the star catalog files, expected to be formatted as "<sc_name>-<index>.csv".
+        _mode -> [str] Mode that determines the number of header rows to skip; 'raw' mode skips two rows, other modes skip one row.
+        max_num_per_tile -> [int, optional, default=None] Maximum number of rows (stars) to keep for each tile after sorting by magnitude.
     Outputs:
-        radec_box -> Spherical rectangles in form of [ra_min, dec_min, ra_max, dec_max] in degrees.
-        box_center -> Center of spherical rectangle in form of [ra, dec] in degrees.
+        pd.DataFrame -> DataFrames containing the specified rows from each file group after sorting and limiting by magnitude.
     """
-    # Ensure seq is a NumPy array for vectorized operations
-    if type(seq) is list: seq = np.array(seq)
 
-    # Calculate the number of tiles along the longitude
-    count_lon = 360 // tile_size
+    if not K4_indices_list:
+        # If no data was generated throughout the loop, yield an empty DataFrame
+        file_path = os.path.join(dir_sc, f"{sc_name}-0.csv")
+        yield create_empty_df(file_path, initial_skip)
 
-    # Compute RA and DEC boundaries for each tile
-    ra_min = (seq % count_lon) * tile_size
-    ra_max = ra_min + tile_size
-    codec_min = (seq // count_lon) * tile_size
-    codec_max = codec_min + tile_size
-    dec_min = 90 - codec_max
-    dec_max = 90 - codec_min
+    # Setup initial conditions based on _mode before processing any files
+    initial_skip = 1 if _mode == 'raw' else 0  # Number of initial rows to skip due to mode
+    # Process each file group specified in K4_indices_list
+    for file_group in K4_indices_list:
 
-    # Stack coordinates to form the RA and DEC boxes
-    radec_box = np.stack([ra_min, dec_min, ra_max, dec_max]).T
+        all_dfs = []  # List to hold all dataframes from current group before sorting and limiting
+        for file_index, row_indices in file_group:
+            file_path = os.path.join(dir_sc, f"{sc_name}-{file_index}.csv")
 
-    # Calculate the center of each box
-    box_center = np.stack([(ra_min + ra_max) / 2, (dec_min + dec_max) / 2]).T
+            if os.path.getsize(file_path) > 25:
+                # Determine header row dynamically if the mode requires it
+                with open(file_path, 'r') as file:
+                    if _mode == 'raw':
+                        description = next(file)  # Skip description line only for 'raw' mode
+                    header = next(file).strip().split(',')
 
-    return radec_box, box_center
+                # Prepare adjusted row indices considering the initial skip
+                adjusted_row_indices = [i + initial_skip + 1 for i in row_indices]  # Adjust for the actual data rows
 
-def box2seqs(radec_box, tile_size):
+                # Define the rows to be loaded using adjusted indices
+                skip_rows = lambda x: x not in adjusted_row_indices
+
+                # Read the file with proper headers and adjusted skipping
+                df = pd.read_csv(file_path, skiprows=skip_rows, header=None, names=header)
+
+                # Add dataframe to list
+                all_dfs.append(df)
+
+        # Combine all dataframes from current group
+        combined_df = pd.concat(all_dfs, ignore_index=True)
+
+        # Process 'mag' column if necessary
+        if max_num_per_tile is not None:
+            combined_df['mag'] = pd.to_numeric(combined_df['mag'])
+            combined_df = combined_df.sort_values(by='mag').head(max_num_per_tile)
+
+        yield combined_df
+
+def search_box_raw(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_indices_db, mag_threshold, t_pm, fov_min,max_num_per_tile=None):
     """
-    Calculate indices of star catalog tiles covering a rectangular search area.
+    This function performs a rectangular search of stars in specified star catalogs within a given RA/Dec box.
+    It applies magnitude filtering and proper motion correction based on the input parameters.
 
-    Usage:
-        >>> seqs = box2seqs([350.6,77.7,373.1,85.4],2)
     Inputs:
-        radec_box -> [list or array-like] Rectangular search area in form of [ra_min, dec_min, ra_max, dec_max] in degrees.
-        tile_size -> [int] Size of each tile in degrees.
-    Outputs:
-        seqs -> [int, array-like] Array of indices for the star catalog tile files covering the search area.
-    """
-    # Boundary tolerance to handle edge cases
-    tol = 1e-8
-
-    # Extract coordinates from the search box
-    ra_min, dec_min, ra_max, dec_max = radec_box
-
-    # Validate the coordinates to ensure proper rectangular area
-    if ra_min >= ra_max or dec_min >= dec_max:
-        raise ValueError('Rectangular area must start at the lower left corner and end at the upper right corner.')
-
-    # Calculate the CO-DEC
-    codec_min = 90 - dec_max
-    codec_max = 90 - dec_min
-
-    # Calculate RA indices covering the search area
-    ra_seqs = np.arange(int(ra_min // tile_size), int((ra_max - tol) // tile_size) + 1)
-
-    # Calculate DEC indices covering the search area
-    codec_seqs = np.arange(int(codec_min // tile_size), int((codec_max - tol) // tile_size) + 1)
-
-    # Calculate the total number of tiles along the longitude
-    count_lon = 360 // tile_size
-
-    # Compute the sequence indices for all tiles within the search area
-    seqs = codec_seqs[:, None] * count_lon + ra_seqs
-
-    # Adjust for crossing the primary meridian
-    seqs += (ra_seqs < 0) * count_lon - (ra_seqs >= count_lon) * count_lon
-
-    # Flatten the array to get a list of indices
-    return seqs.flatten()
-
-def cone2seqs(ra_c, dec_c, radius, tile_size):
-    """
-    Calculates the indices of star catalog tile files covering a conical search area.
-
-    Usage:
-        >>> seqs = cone2seqs(100,20,10,2)
-    Inputs:
-        ra_c -> [float] Right Ascension of the cone's center in degrees.
-        dec_c -> [float] Declination of the cone's center in degrees.
-        radius -> [float] Angular radius of the cone in degrees.
-        tile_size -> [int] Size of each tile in degrees.
-    Outputs:
-        seqs -> [int, array-like] Indices of the star catalog tile files covering the cone search area.
-    """
-    # Calculate the number of tiles along longitude
-    count_lon = 360 // tile_size
-
-    # Increase the radius slightly to ensure complete coverage
-    radius += tile_size * 1.2
-
-    if 180 % tile_size:
-        raise Exception('180/tile_size must be integer.')
-
-    # Calculate mask for the spherical cap
-    mask_cap = from_cap(tile_size, dec_c, ra_c, radius)
-
-    # Find indices within the masked area
-    dec_index, ra_index = np.where(mask_cap)
-
-    # Compute the sequence indices for the masked tiles
-    seqs = dec_index * count_lon + ra_index
-
-    return seqs  
-
-def _load_files(sc_indices, sc_path, sc_name, _mode, max_num_per_tile=None):
-    """
-    Generator function for loading multiple star catalog tile files.
-
-    Usage:
-        >>> _load_files([10,15,178,3430,8009,10002],'starcatalogs/raw/hygv3.7/res5/','hygv3。7,'raw')
-    Inputs:
-        sc_indices -> [int,array-like] Indices of the star catalog tile files to load.
-        sc_path -> [str] Path of star catalog tile files, e.g., 'starcatalogs/raw/hygv3.7/res5/'.
-        sc_name -> [str] Name of the star catalog, e.g., 'hygv3.7'.
-        _mode -> [str] Type of star catalogs ('raw', 'reduced', 'simplified').
-    Yields:
-        pandas.DataFrame: Dataframe loaded from each tile file.
-    """
-    # Set the number of rows to skip based on the catalog type
-    skiprows = 1 if _mode == 'raw' else 0
-
-    # Loop through each index in the star catalog
-    for sc_index in sc_indices:
-        # Construct the filename for each tile
-        filename = f'{sc_path}{sc_name}-{sc_index}.csv'
-
-        # Check if file is large enough to be non-empty (arbitrary threshold set at 25 bytes)
-        if os.path.getsize(filename) > 25:
-            # Yield a DataFrame for each non-empty file
-            df = pd.read_csv(filename, skiprows=skiprows, dtype=str)
-            if max_num_per_tile is None:
-                yield df
-            else:    
-                df['mag'] = pd.to_numeric(df['mag'])
-                df_sorted = df.sort_values(by='mag').head(max_num_per_tile)
-                yield df_sorted
-
-def search_box_magpm(radec_box, sc_path, sc_name, tile_size, mag_threshold, t_pm,max_num_per_tile=None):
-    """
-    Performs a rectangular search on the reduced star catalog considering magnitude and proper motion.
-
-    Usage:
-        >>> df = search_box_magpm([20,30,30,40],'starcatalogs/reduced/hygv3.7/res5/','hygv3.7',5,8,2023.5)
-    Inputs:
-        radec_box -> [array-like] Rectangular search area in form of [ra_min, dec_min, ra_max, dec_max] in degrees.
-        sc_path -> [str] Path of star catalog tile files.
+        radec_box -> [list] Rectangular search area in form of [ra_min, dec_min, ra_max, dec_max] in degrees.
+        dir_sc -> [str] Directory where the star catalog files are stored.
         sc_name -> [str] Name of the star catalog.
-        tile_size -> [int] Size of the tile in degrees.
-        mag_threshold -> [float] Apparent magnitude limit of the detector.
-        t_pm -> [float] Epoch when the search was performed.
+        _mode -> [str] Mode that determines the number of header rows to skip; 'raw' mode skips two rows, other modes skip one row.
+        tb_name -> [str] Name of the star catalog table.
+        catalog_indices_db -> [str] Path to the database containing the star catalog indices.
+        mag_threshold -> [float] Apparent magnitude limit.
+        t_pm -> [float] Epoch to which the stars are unified.
+        fov_min -> [float] Field of view parameters in degrees. It determines the hierarchical division of the sky region in HEALPix,
+        ensuring that each tile's size is greater than one-quarter of the FOV and less than or equal to half of the FOV.
+        max_num_per_tile -> [int, optional, default=None] Maximum number of stars to include in each tile, sorted by brightness.
+        If None, includes all stars meeting the magnitude criteria.
     Outputs:
-        df -> [DataFrame] Dataframe containing stars within the search area.
+        df -> [pd.DataFrame] DataFrame containing the search results.
+        level -> [str] HEALPix level used for the search.
+        nside -> [int] NSIDE parameter of the HEALPix grid used for the search.
+        ids -> [list] List of HEALPix pixel IDs covering the search box.
+        pixel_size -> [float] Approximate size of each HEALPix pixel in degrees.
+        fov_min -> [float] Field of view parameters in degrees.
     """
     # Extract the boundary from the search box
     ra_min, dec_min, ra_max, dec_max = radec_box
+    dec_c,ra_c = np.mean([dec_max,dec_min]),np.mean([ra_max,ra_min])
+    ra_range,dec_range = ra_max-ra_min,dec_max-dec_min
+    if fov_min is None:
+        fov_min = min(ra_range*np.cos(np.radians(dec_c)),dec_range)
 
-    # Convert the search box to catalog tile file indices
-    sc_indices = box2seqs(radec_box, tile_size)
+    vertices = np.array([
+        [ra_min, dec_min],  # Bottom left
+        [ra_max, dec_min],  # Bottom right
+        [ra_max, dec_max],  # Top right
+        [ra_min, dec_max]   # Top left
+    ])
 
-    # Concatenate data from relevant tile files
-    df = pd.concat(_load_files(sc_indices, sc_path, sc_name,'reduced',max_num_per_tile))
+    vertices_uec = hp.ang2vec(vertices[:,0],vertices[:,1],lonlat=True)
+
+    # Find the HEALPix parameters for a given field of view (FOV) in degrees
+    level, nside, npix, pixel_size = find_healpix_level(fov_min)
+
+    # Query the HEALPix pixels covering the search box
+    ids = hp.query_polygon(nside, vertices_uec, inclusive=True,fact=64)
+
+    # Query the database to retrieve specific data columns for pixel numbers at a given level from a specified star catalog table. 
+    K4_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
+
+    # Load and concatenate data from relevant tile files
+    dfs = _load_files(K4_indices_list,dir_sc,sc_name,_mode,max_num_per_tile)
     
-    # Remove duplicate entries based on RA and DEC
-    df.drop_duplicates(subset=['ra', 'dec'], inplace=True)
+    df = pd.concat(dfs,ignore_index=True)
+    if df.empty: 
+        return df,level,nside,ids,pixel_size,fov_min
 
-    # Convert relevant columns to numeric for calculations
-    if {'pmra', 'pmdec'}.issubset(df.columns): 
-        df[['ra', 'dec', 'pmra', 'pmdec', 'mag', 'epoch']] = df[['ra', 'dec', 'pmra', 'pmdec', 'mag', 'epoch']].apply(pd.to_numeric)
-    else:    
-        df[['ra', 'dec', 'mag', 'epoch']] = df[['ra', 'dec', 'mag', 'epoch']].apply(pd.to_numeric)
+    # Specific handling for different catalogs
+    if sc_name in ['hyg37','at-hyg24']:
+        df['ra'] = (df['ra'].astype(float)*15).round(8) # Convert hourangle to deg
+        df['epoch'] = 2000.0
+        columns_dict = {'pmra':'pm_ra', 'pmdec':'pm_dec'}
+        df.rename(columns=columns_dict, inplace=True)
+    elif sc_name == 'gsc30':
+        columns_dict = {'rapm':'pm_ra', 'decpm':'pm_dec'}
+        df.rename(columns=columns_dict, inplace=True)
+    elif sc_name == 'gaiadr3':
+        columns_dict = {'pmra': 'pm_ra', 'pmdec': 'pm_dec'}
+        df.rename(columns=columns_dict, inplace=True)
+    elif sc_name == 'ucac5':
+        columns_dict = {'pmur':'pm_ra', 'pmud':'pm_dec','epu':'epoch'}
+        df.rename(columns=columns_dict, inplace=True) 
+    elif sc_name == 'usnob':
+        columns_dict = {'pmRA':'pm_ra', 'pmDEC':'pm_dec','Epoch':'epoch'}
+        df.rename(columns=columns_dict, inplace=True)
+    elif sc_name == '2mass':
+        df['epoch'] = Time(df['jdate'].astype(float), format='jd').jyear.round(3)
+
+    # Ensure required columns are numeric
+    required_columns = ['ra', 'dec', 'mag', 'epoch']
+    pm_columns = ['pm_ra', 'pm_dec']
+
+    if set(pm_columns).issubset(df.columns):
+        required_columns.extend(pm_columns)
+
+    df[required_columns] = df[required_columns].apply(pd.to_numeric, errors='coerce')
+
+    # Filter by magnitude threshold
+    mag_flag = (df['mag'] < mag_threshold)
+    df = df[mag_flag].sort_values(by=['mag'])
+
+    # Correct the proper motion
+    dt = float(t_pm) - df['epoch']
+    if {'pm_ra', 'pm_dec'}.issubset(df.columns):
+        df['ra'] +=  df['pm_ra']/3.6e6 * dt
+        df['dec'] += df['pm_dec']/3.6e6 * dt
+        df['epoch'] = t_pm
+    else:
+        warnings.warn(f'Proper motion data for stars in catalog {sc_name} are not found.')
+
+    # Filter stars within the search box
+    ra_flag = np.abs(df['ra'] - (ra_min + ra_max)/2) < (ra_max - ra_min)/2
+    dec_flag = np.abs(df['dec']- (dec_min + dec_max)/2) < (dec_max - dec_min)/2
+    df = df[ra_flag & dec_flag]
+    df.reset_index(drop=True,inplace=True)  
+
+    return df,level,nside,ids,pixel_size,fov_min
+
+def search_cone_raw(center, radius, dir_sc, sc_name, _mode, tb_name, catalog_indices_db, mag_threshold,t_pm,fov_min,max_num_per_tile=None):
+    """
+    This function performs a cone search of stars in specified star catalogs within a given RA/Dec center and radius.
+    It applies magnitude filtering and proper motion correction based on the input parameters.
+
+    Inputs:
+        center -> [list] Center of the cone in form of [ra_c, dec_c] in degrees.
+        radius -> [float] Angular radius of the cone.
+        dir_sc -> [str] Directory where the star catalog files are stored.
+        sc_name -> [str] Name of the star catalog.
+        _mode -> [str] Mode that determines the number of header rows to skip; 'raw' mode skips two rows, other modes skip one row.
+        tb_name -> [str] Name of the star catalog table.
+        catalog_indices_db -> [str] Path to the database containing the star catalog indices.
+        mag_threshold -> [float] Apparent magnitude limit.
+        t_pm -> [float] Epoch to which the stars are unified.
+        fov_min -> [float] Field of view parameters in degrees. It determines the hierarchical division of the sky region in HEALPix,
+        ensuring that each tile's size is greater than one-quarter of the FOV and less than or equal to half of the FOV.
+        max_num_per_tile -> [int, optional, default=None] Maximum number of stars to include in each tile, sorted by brightness.
+        If None, includes all stars meeting the magnitude criteria.
+    Outputs:
+        df -> [pd.DataFrame] DataFrame containing the search results.
+        level -> [str] HEALPix level used for the search.
+        nside -> [int] NSIDE parameter of the HEALPix grid used for the search.
+        ids -> [list] List of HEALPix pixel IDs covered by the search cone.
+        pixel_size -> [float] Approximate size of each HEALPix pixel in degrees.
+        fov_min -> [float] Field of view parameters in degrees.
+    """
+    # Extract center coordinates for the cone search
+    ra_c, dec_c = center
+
+    # Find the HEALPix parameters for a given field of view (FOV) in degrees
+    if fov_min is None: fov_min = radius*2
+
+    level, nside, npix, pixel_size = find_healpix_level(fov_min)
+
+    # Compute the unit vector for the cone center
+    uec = hp.ang2vec(ra_c, dec_c, lonlat=True)
+
+    # Query the HEALPix pixels covering the cone
+    ids = hp.query_disc(nside, uec, np.radians(radius), inclusive=True,fact=64)
+
+    # Query the database to retrieve specific data columns for pixel numbers at a given level from a specified star catalog table. 
+    K4_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
+
+    # Load and concatenate data from relevant tile files
+    dfs = _load_files(K4_indices_list,dir_sc,sc_name,_mode,max_num_per_tile)
+    
+    df = pd.concat(dfs,ignore_index=True)
+    if df.empty: 
+        return df,level,nside,ids,pixel_size,fov_min
+
+    # Specific handling for different catalogs
+    if sc_name in ['hyg37','at-hyg24']:
+        df['ra'] = (df['ra'].astype(float)*15).round(8) # Convert hourangle to deg
+        df['epoch'] = 2000.0
+        columns_dict = {'pmra':'pm_ra', 'pmdec':'pm_dec'}
+        df.rename(columns=columns_dict, inplace=True)
+    elif sc_name == 'gsc30':
+        columns_dict = {'rapm':'pm_ra', 'decpm':'pm_dec'}
+        df.rename(columns=columns_dict, inplace=True)
+    elif sc_name == 'gaiadr3':
+        columns_dict = {'pmra': 'pm_ra', 'pmdec': 'pm_dec'}
+        df.rename(columns=columns_dict, inplace=True)
+    elif sc_name == 'ucac5':
+        columns_dict = {'pmur':'pm_ra', 'pmud':'pm_dec','epu':'epoch'}
+        df.rename(columns=columns_dict, inplace=True) 
+    elif sc_name == 'usnob':
+        columns_dict = {'pmRA':'pm_ra', 'pmDEC':'pm_dec','Epoch':'epoch'}
+        df.rename(columns=columns_dict, inplace=True)
+    elif sc_name == '2mass':
+        df['epoch'] = Time(df['jdate'].astype(float), format='jd').jyear.round(3)
+
+    # Ensure required columns are numeric
+    required_columns = ['ra', 'dec', 'mag', 'epoch']
+    pm_columns = ['pm_ra', 'pm_dec']
+
+    if set(pm_columns).issubset(df.columns):
+        required_columns.extend(pm_columns)
+
+    df[required_columns] = df[required_columns].apply(pd.to_numeric, errors='coerce')
+
+    # Filter by magnitude threshold
+    mag_flag = (df['mag'] < mag_threshold)
+    df = df[mag_flag].sort_values(by=['mag'])
+
+    # Correct the proper motion
+    dt = float(t_pm) - df['epoch']
+    if {'pm_ra', 'pm_dec'}.issubset(df.columns):
+        df['ra'] +=  df['pm_ra']/3.6e6 * dt
+        df['dec'] += df['pm_dec']/3.6e6 * dt
+        df['epoch'] = t_pm
+    else:
+        warnings.warn('Proper motion data for stars in catalog {:s} are not found.'.format(sc_name))
+
+    # Calculate the angular distance between the cone center and each grid point.
+    ra_c_rad,dec_c_rad = np.radians([ra_c,dec_c])
+    ra_rad,dec_rad = np.radians(df[['ra', 'dec']].values).T
+
+    angular_distance_cos = separation(ra_c_rad,dec_c_rad,ra_rad,dec_rad)
+
+    # Determine whether each grid point is inside the cone.
+    inside_cone = angular_distance_cos >= np.cos(np.deg2rad(radius))
+
+    df = df[inside_cone]
+    df.reset_index(drop=True,inplace=True)   
+
+    return df,level,nside,ids,pixel_size,fov_min
+
+def search_box_reduced(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_indices_db, mag_threshold, t_pm, fov_min,max_num_per_tile=None):
+    """
+    This function performs a rectangular search of stars in specified reduced star catalogs within a given RA/Dec box.
+    It applies magnitude filtering and proper motion correction based on the input parameters.
+
+    Inputs:
+        radec_box -> [list] Rectangular search area in form of [ra_min, dec_min, ra_max, dec_max] in degrees.
+        dir_sc -> [str] Path of star catalog tile files.
+        sc_name -> [str] Name of the star catalog.
+        _mode -> [str] Mode that determines the number of header rows to skip; 'raw' mode skips two rows, other modes skip one row.
+        tb_name -> [str] Name of the star catalog table.
+        catalog_indices_db -> [str] Path to the database containing the star catalog indices.
+        mag_threshold -> [float] Apparent magnitude limit.
+        t_pm -> [float] Epoch to which the stars are unified.
+        fov-min -> [float] Field of view parameters in degrees. It determines the hierarchical division of the sky region in HEALPix,
+        ensuring that each tile's size is greater than one-quarter of the FOV and less than or equal to half of the FOV.
+        max_num_per_tile -> [int, optional, default=None] Maximum number of stars to include in each tile, sorted by brightness. If None, includes all stars meeting the magnitude criteria.
+    Outputs:
+        df -> [pd.DataFrame] DataFrame containing stars within the search area.
+        level -> [str] HEALPix level used for the search.
+        nside -> [int] NSIDE parameter of the HEALPix grid used for the search.
+        ids -> [list] List of HEALPix pixel IDs covered by the search box.
+        pixel_size -> [float] Approximate size of each HEALPix pixel in degrees.
+        fov_min -> [float] Field of view parameters in degrees.
+    """
+    # Extract the boundary from the search box
+    ra_min, dec_min, ra_max, dec_max = radec_box
+    dec_c,ra_c = np.mean([dec_max,dec_min]),np.mean([ra_max,ra_min])
+    ra_range,dec_range = ra_max-ra_min,dec_max-dec_min
+    if fov_min is None: fov_min = min(ra_range*np.cos(np.radians(dec_c)),dec_range)
+
+    vertices = np.array([
+        [ra_min, dec_min],  # Bottom left
+        [ra_max, dec_min],  # Bottom right
+        [ra_max, dec_max],  # Top right
+        [ra_min, dec_max]   # Top left
+    ])
+
+    vertices_uec = hp.ang2vec(vertices[:,0],vertices[:,1],lonlat=True)
+
+    # Find the HEALPix parameters for a given field of view (FOV) in degrees
+    level, nside, npix, pixel_size = find_healpix_level(fov_min)
+
+    # Query the HEALPix pixels covering the search box
+    ids = hp.query_polygon(nside, vertices_uec, inclusive=True,fact=64)
+
+    # Query the database to retrieve specific data columns for pixel numbers at a given level from a specified star catalog table. 
+    K4_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
+
+    # Load and concatenate data from relevant tile files
+    dfs = _load_files(K4_indices_list,dir_sc,sc_name,_mode,max_num_per_tile)
+    
+    df = pd.concat(dfs,ignore_index=True)
+    if df.empty: 
+        return df,level,nside,ids,pixel_size,fov_min
+
+    # Ensure required columns are numeric
+    required_columns = ['ra', 'dec', 'mag', 'epoch']
+    pm_columns = ['pm_ra', 'pm_dec']
+
+    if set(pm_columns).issubset(df.columns):
+        required_columns.extend(pm_columns)
+
+    df[required_columns] = df[required_columns].apply(pd.to_numeric, errors='coerce')
 
     # Filter stars based on the magnitude threshold
     mag_flag = df['mag'] < mag_threshold
@@ -228,141 +383,276 @@ def search_box_magpm(radec_box, sc_path, sc_name, tile_size, mag_threshold, t_pm
     dt = t_pm - df['epoch']
 
     # Apply proper motion correction if data is available
-    if {'pmra', 'pmdec'}.issubset(df.columns):    
-        df['ra'] += df['pmra'] / 3.6e6 * dt   
-        df['dec'] += df['pmdec'] / 3.6e6 * dt
+    if {'pm_ra', 'pm_dec'}.issubset(df.columns):
+        df['ra'] += df['pm_ra'] / 3.6e6 * dt
+        df['dec'] += df['pm_dec'] / 3.6e6 * dt
+        # Update the epoch to the search epoch
+        df['epoch'] = t_pm
     else:
         warnings.warn(f'Proper motion data for stars in catalog {sc_name} are not found.')
 
     # Filter stars within the search area
-    ra, dec = df['ra'], df['dec']
-    ra_flag = np.abs(ra - (ra_min + ra_max) / 2) < (ra_max - ra_min) / 2
-    dec_flag = np.abs(dec - (dec_min + dec_max) / 2) < (dec_max - dec_min) / 2
-    flag = ra_flag & dec_flag 
-    df = df[flag]
+    ra_flag = np.abs(df['ra'] - (ra_min + ra_max) / 2) < (ra_max - ra_min) / 2
+    dec_flag = np.abs(df['dec'] - (dec_min + dec_max) / 2) < (dec_max - dec_min) / 2
+    df = df[ra_flag & dec_flag]
 
-    # Update the epoch to the search epoch
-    df['epoch'] = t_pm
+    df.reset_index(drop=True,inplace=True)
     
-    return df.reset_index(drop=True)
+    return df,level,nside,ids,pixel_size,fov_min
 
-def search_cone_magpm(center, radius, sc_path, sc_name, tile_size, mag_threshold, t_pm,max_num_per_tile=None):
+
+def search_cone_reduced(center, radius, dir_sc, sc_name, _mode, tb_name, catalog_indices_db, mag_threshold,t_pm,fov_min,max_num_per_tile=None):
     """
-    Performs a conical search of stars on the reduced star catalog considering magnitude and proper motion.
+    This function performs a conical search of stars in specified reduced star catalogs within a given RA/Dec center and radius.
+    It applies magnitude filtering and proper motion correction based on the input parameters.
 
-    Usage:
-        >>> df = search_cone([20,30],10,'starcatalogs/reduced/hygv3.7/res5/','hygv3.7',5,8,2023.5)
     Inputs:
-        center -> [tuple] Center of the cap in form of [Ra, Dec] in degrees.
+        center -> [list] Center of the cap in form of [Ra, Dec] in degrees.
         radius -> [float] Angular radius of the cap in degrees.
-        sc_path -> [str] Path of star catalog tile files.
+        dir_sc -> [str] Path of star catalog tile files.
         sc_name -> [str] Name of the star catalog.
-        tile_size -> [int] Tile size in degrees.
+        _mode -> [str] Mode that determines the number of header rows to skip; 'raw' mode skips two rows, other modes skip one row.
+        tb_name -> [str] Name of the star catalog table.
+        catalog_indices_db -> [str] Path to the database containing the star catalog indices.
         mag_threshold -> [float] Apparent magnitude limit.
-        t_pm -> [float] Epoch when the search was performed.
+        t_pm -> [float] Epoch to which the stars are unified.
+        fov_min -> [float] Field of view parameters in degrees. It determines the hierarchical division of the sky region in HEALPix,
+        ensuring that each tile's size is greater than one-quarter of the FOV and less than or equal to half of the FOV.
+        max_num_per_tile -> [int, optional, default=None] Maximum number of stars to include in each tile, sorted by brightness. If None, includes all stars meeting the magnitude criteria.
     Outputs:
-        df -> [DataFrame] Dataframe of stars within the cone search area.
+        df -> [pd.DataFrame] DataFrame containing stars within the cone search area.
+        level -> [str] HEALPix level used for the search.
+        nside -> [int] NSIDE parameter of the HEALPix grid used for the search.
+        ids -> [list] List of HEALPix pixel IDs covered by the search cone.
+        pixel_size -> [float] Approximate size of each HEALPix pixel in degrees.
+        fov_min -> [float] Field of view parameters in degrees.
     """
     # Extract center coordinates for the cone search
     ra_c, dec_c = center
 
-    # Get tile file indices for the cone search area
-    sc_indices = cone2seqs(ra_c, dec_c, radius, tile_size)
+    # Find the HEALPix parameters for a given field of view (FOV) in degrees
+    if fov_min is None: fov_min = radius*2
 
+    level, nside, npix, pixel_size = find_healpix_level(fov_min)
+
+    # Compute the unit vector for the cone center
+    uec = hp.ang2vec(ra_c, dec_c, lonlat=True)
+
+    # Query the HEALPix pixels covering the cone
+    ids = hp.query_disc(nside, uec, np.radians(radius), inclusive=True,fact=64)
+
+    # Query the database to retrieve specific data columns for pixel numbers at a given level from a specified star catalog table. 
+    K4_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
+ 
     # Load and concatenate data from relevant tile files
-    df = pd.concat(_load_files(sc_indices, sc_path, sc_name,'reduced',max_num_per_tile))
+    dfs = _load_files(K4_indices_list,dir_sc,sc_name,_mode,max_num_per_tile)
+    
+    df = pd.concat(dfs,ignore_index=True)
+    if df.empty: 
+        return df,level,nside,ids,pixel_size,fov_min
 
-    # Remove duplicate entries based on RA and DEC
-    df.drop_duplicates(subset=['ra', 'dec'], inplace=True)
+    # Ensure required columns are numeric
+    required_columns = ['ra', 'dec', 'mag', 'epoch']
+    pm_columns = ['pm_ra', 'pm_dec']
 
-    # Convert relevant columns to numeric for calculations
-    if {'pmra', 'pmdec'}.issubset(df.columns): 
-         df[['ra','dec','pmra','pmdec','mag','epoch']] = df[['ra', 'dec','pmra','pmdec','mag','epoch']].apply(pd.to_numeric)
-    else:    
-        df[['ra','dec','mag','epoch']] = df[['ra','dec','mag','epoch']].apply(pd.to_numeric)
+    if set(pm_columns).issubset(df.columns):
+        required_columns.extend(pm_columns)
+
+    df[required_columns] = df[required_columns].apply(pd.to_numeric, errors='coerce')
 
     # Filter stars based on magnitude threshold
     df = df[df['mag'] < mag_threshold].sort_values(by='mag')
 
     # Proper motion adjustment, if available
     dt = t_pm - df['epoch']
-    if 'pmra' in df.columns and 'pmdec' in df.columns:
-        df['ra'] += df['pmra'] / 3.6e6 * dt
-        df['dec'] += df['pmdec'] / 3.6e6 * dt
+    if {'pm_ra', 'pm_dec'}.issubset(df.columns):
+        df['ra'] += df['pm_ra'] / 3.6e6 * dt
+        df['dec'] += df['pm_dec'] / 3.6e6 * dt
+        # Update the epoch for the search results
+        df['epoch'] = t_pm
     else:
         warnings.warn(f'Proper motion data for stars in catalog {sc_name} not found.')
 
-    # Filter stars within the cone area
-    c1 = SkyCoord(df['ra'], df['dec'], unit='deg')
-    c2 = SkyCoord(ra_c, dec_c, unit='deg')
-    sep = c1.separation(c2).deg
-    df = df[sep < radius]
+    # Calculate the angular distance between the cap center and each grid point.
+    ra_c_rad,dec_c_rad = np.radians([ra_c,dec_c])
+    ra_rad,dec_rad = np.radians(df[['ra', 'dec']].values).T
 
-    # Update the epoch for the search results
-    df['epoch'] = t_pm
+    angular_distance_cos = separation(ra_c_rad,dec_c_rad,ra_rad,dec_rad)
 
-    return df.reset_index(drop=True)  
+    # Determine whether each grid point is inside the cone.
+    inside_cone = angular_distance_cos >= np.cos(np.deg2rad(radius))
 
-def search_box(radec_box, sc_path, sc_name, tile_size,max_num_per_tile=None):
+    df = df[inside_cone]
+    df.reset_index(drop=True,inplace=True)
+
+    return df,level,nside,ids,pixel_size,fov_min
+
+def search_box_simplified(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_indices_db, fov_min,max_num_per_tile=None,astrometry_corrections={}):
     """
-    Performs a rectangular search on the simplified star catalog without considering magnitude and proper motion.
+    This function performs a rectangular search of stars in specified simplified star catalogs within a given RA/Dec box.
+    It applies various astrometry corrections based on the input parameters.
 
-    Usage:
-        >>> df = search_box([20,30,30,40],'starcatalogs/simplified/hygv3.7/res5/mag8.0/epoch2023.0/','hygv3.7',5)
     Inputs:
         radec_box -> [array-like] Rectangular search area in form of [ra_min, dec_min, ra_max, dec_max] in degrees.
-        sc_path -> [str] Path of star catalog tile files.
+        dir_sc -> [str] Path of star catalog tile files.
         sc_name -> [str] Name of the star catalog.
-        tile_size -> [int] Size of the tile in degrees.
+        _mode -> [str] Mode that determines the number of header rows to skip; 'raw' mode skips two rows, other modes skip one row.
+        tb_name -> [str] Name of the star catalog table.
+        catalog_indices_db -> [str] Path to the database containing the star catalog indices.
+        fov_min -> [float] Field of view parameters in degrees. It determines the hierarchical division of the sky region in HEALPix,
+        ensuring that each tile's size is greater than one-quarter of the FOV and less than or equal to half of the FOV.
+        max_num_per_tile -> [int, optional, default=None] Maximum number of stars to include in each tile, sorted by brightness. If None, includes all stars meeting the criteria.
+        astrometry_corrections -> [dict, optional, default={}] Dictionary specifying the types of astrometry corrections to apply.
+            - 't' -> [str] Observation time in UTC, such as '2019-02-26T20:11:14.347'.
+            - 'proper-motion' -> [None] If present, apply proper motion correction.
+            - 'aberration' -> [tuple] Aberration correction parameters. Observer's velocity relative to Earth's center (vx, vy, vz) in km/s.
+            - 'parallax' -> [None] If present, apply parallax correction.
+            - 'deflection' -> [None] If present, apply light deflection correction.
     Outputs:
-        df -> [DataFrame] Dataframe of stars within the rectangular search area.
+        df -> [pd.DataFrame] DataFrame containing stars within the rectangular search area.
+        level -> [str] HEALPix level used for the search.
+        nside -> [int] NSIDE parameter of the HEALPix grid used for the search.
+        ids -> [list] List of HEALPix pixel IDs covered by the search box.
+        pixel_size -> [float] Approximate size of each HEALPix pixel in degrees.
+        fov_min -> [float] Field of view parameters in degrees.
     """
-    # Convert search area to catalog tile indices
-    sc_indices = box2seqs(radec_box, tile_size)
-
-    # Load and concatenate data from tile files
-    df = pd.concat(_load_files(sc_indices, sc_path, sc_name,'simplified',max_num_per_tile))
-
-    # Remove duplicates and convert coordinates to numeric
-    df.drop_duplicates(subset=['ra', 'dec'], inplace=True)
-    df[['ra', 'dec', 'mag']] = df[['ra', 'dec', 'mag']].apply(pd.to_numeric)
-
-    # Filter stars within the search box
     ra_min, dec_min, ra_max, dec_max = radec_box
-    ra_flag = np.abs(df['ra'] - (ra_min + ra_max) / 2) < (ra_max - ra_min) / 2
-    dec_flag = np.abs(df['dec'] - (dec_min + dec_max) / 2) < (dec_max - dec_min) / 2
-    df = df[ra_flag & dec_flag].sort_values(by='mag')
+    dec_c,ra_c = np.mean([dec_max,dec_min]),np.mean([ra_max,ra_min])
+    ra_range,dec_range = ra_max-ra_min,dec_max-dec_min
+    if fov_min is None: fov_min = min(ra_range*np.cos(np.radians(dec_c)),dec_range)
 
-    return df.reset_index(drop=True)
+    vertices = np.array([
+        [ra_min, dec_min],  # Bottom left
+        [ra_max, dec_min],  # Bottom right
+        [ra_max, dec_max],  # Top right
+        [ra_min, dec_max]   # Top left
+    ])
 
-def search_cone(center, radius, sc_path, sc_name, tile_size,max_num_per_tile=None):
-    """
-    Performs a cone search on the simplified star catalog without considering magnitude and proper motion.
+    vertices_uec = hp.ang2vec(vertices[:,0],vertices[:,1],lonlat=True)
 
-    Usage:
-        >>> df = search_cone([20,30],10,'starcatalogs/reduced/hygv3.7/res5/','hygv3.7',5)
-    Inputs:
-        center -> [tuple] Center of the cap in form of [Ra, Dec] in degrees.
-        radius -> [float] Angular radius of the cap in degrees.
-        sc_path -> [str] Path of star catalog tile files.
-        sc_name -> [str] Name of the star catalog.
-        tile_size -> [int] Tile size in degrees.
-    Outputs:
-        df -> [DataFrame] Dataframe of stars within the cone search area.
-    """
-    # Extract center coordinates and get tile indices
-    ra_c, dec_c = center
-    sc_indices = cone2seqs(ra_c, dec_c, radius, tile_size)
+    # Find the HEALPix parameters for a given field of view (FOV) in degrees
+    level, nside, npix, pixel_size = find_healpix_level(fov_min)
+
+    # Query the HEALPix pixels covered by the search box
+    ids = hp.query_polygon(nside, vertices_uec, inclusive=True,fact=64)
+
+    # Query the database to retrieve specific data columns for pixel numbers at a given level from a specified star catalog table. 
+    K4_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
 
     # Load and concatenate data from relevant tile files
-    df = pd.concat(_load_files(sc_indices, sc_path, sc_name,'simplified',max_num_per_tile))
-    df.drop_duplicates(subset=['ra', 'dec'], inplace=True)
-    df[['ra', 'dec', 'mag']] = df[['ra', 'dec', 'mag']].apply(pd.to_numeric)
+    dfs = _load_files(K4_indices_list,dir_sc,sc_name,_mode,max_num_per_tile)
+    
+    df = pd.concat(dfs,ignore_index=True)
+    if df.empty: 
+        return df,level,nside,ids,pixel_size,fov_min
 
-    # Filter stars within the cone search area
-    c1 = SkyCoord(df['ra'], df['dec'], unit='deg')
-    c2 = SkyCoord(ra_c, dec_c, unit='deg')
-    sep = c1.separation(c2).deg
-    df = df[sep < radius].sort_values(by='mag')
+    # Ensure required columns are numeric
+    required_columns = ['ra', 'dec', 'mag', 'epoch']
+    pm_columns = ['pm_ra', 'pm_dec']
+    dist_columns = ['dist']
 
-    return df.reset_index(drop=True)     
+    if set(pm_columns).issubset(df.columns):
+        required_columns.extend(pm_columns)
+    if set(dist_columns).issubset(df.columns):
+        required_columns.extend(dist_columns)
+
+    df[required_columns] = df[required_columns].apply(pd.to_numeric, errors='coerce')
+
+    # Filter stars within the search box
+    ra_flag = np.abs(df['ra'] - ra_c) < ra_range / 2
+    dec_flag = np.abs(df['dec'] - dec_c) < dec_range / 2
+    df = df[ra_flag & dec_flag]
+
+    ra_rad, dec_rad = np.radians(df[['ra', 'dec']].values).T
+
+    if astrometry_corrections:
+        df = apply_astrometry_corrections(df, astrometry_corrections, ra_rad, dec_rad)
+
+    df = df.sort_values(by='mag')
+    df.reset_index(drop=True, inplace=True)
+
+    return df,level,nside,ids,pixel_size,fov_min
+
+def search_cone_simplified(center, radius, dir_sc, sc_name, _mode, tb_name, catalog_indices_db, fov_min, max_num_per_tile=None,astrometry_corrections={}):
+    """
+    This function performs a cone search of stars in specified simplified star catalogs within a given RA/Dec center and radius.
+    It applies various astrometry corrections based on the input parameters.
+
+    Inputs:
+        center -> [list] Center of the cap in form of [Ra, Dec] in degrees.
+        radius -> [float] Angular radius of the cap in degrees.
+        dir_sc -> [str] Directory of the star catalog tile files.
+        sc_name -> [str] Name of the star catalog.
+        _mode -> [str] Mode that determines the number of header rows to skip; 'raw' mode skips two rows, other modes skip one row.
+        tb_name -> [str] Name of the star catalog table.
+        catalog_indices_db -> [str] Path to the database containing the star catalog indices.
+        fov_min -> [float] Field of view parameters in degrees. It determines the hierarchical division of the sky region in HEALPix,
+        ensuring that each tile's size is greater than one-quarter of the FOV and less than or equal to half of the FOV.
+        max_num_per_tile -> [int, optional, default=None] Maximum number of stars to include in each tile, sorted by brightness. If None, includes all stars meeting the criteria.
+        astrometry_corrections -> [dict, optional, default={}] Dictionary specifying the types of astrometry corrections to apply.
+            - 't' -> [str] Observation time in UTC, such as '2019-02-26T20:11:14.347'.
+            - 'proper-motion' -> [None] If present, apply proper motion correction.
+            - 'aberration' -> [tuple] Aberration correction parameters. Observer's velocity relative to Earth's center (vx, vy, vz) in km/s.
+            - 'parallax' -> [None] If present, apply parallax correction.
+            - 'deflection' -> [None] If present, apply light deflection correction.
+    Outputs:
+        df -> [pd.DataFrame] DataFrame containing stars within the cone search area.
+        level -> [str] HEALPix level used for the search.
+        nside -> [int] NSIDE parameter of the HEALPix grid used for the search.
+        ids -> [list] List of HEALPix pixel IDs covered by the search cone.
+        pixel_size -> [float] Approximate size of each HEALPix pixel in degrees.
+        fov_min -> [float] Field of view parameters in degrees.
+    """
+    # Extract center coordinates for the cone search
+    ra_c, dec_c = center
+
+    # Find the HEALPix parameters for a given field of view (FOV) in degrees
+    if fov_min is None: fov_min = radius*2
+
+    level, nside, npix, pixel_size = find_healpix_level(fov_min)
+
+    # Compute the unit vector for the cone center
+    uec = hp.ang2vec(ra_c, dec_c, lonlat=True)
+
+    # Query the HEALPix pixels covering the cone
+    ids = hp.query_disc(nside, uec, np.radians(radius), inclusive=True,fact=64)
+
+    # Query the database to retrieve specific data columns for pixel numbers at a given level from a specified star catalog table. 
+    K4_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
+
+    # Load and concatenate data from relevant tile files
+    dfs = _load_files(K4_indices_list,dir_sc,sc_name,_mode,max_num_per_tile)
+    
+    df = pd.concat(dfs,ignore_index=True)
+
+    if df.empty: 
+        return df,level,nside,ids,pixel_size,fov_min
+
+    # Ensure required columns are numeric
+    required_columns = ['ra', 'dec', 'mag', 'epoch']
+    pm_columns = ['pm_ra', 'pm_dec']
+    dist_columns = ['dist']
+
+    if set(pm_columns).issubset(df.columns):
+        required_columns.extend(pm_columns)
+    if set(dist_columns).issubset(df.columns):
+        required_columns.extend(dist_columns)
+
+    df[required_columns] = df[required_columns].apply(pd.to_numeric, errors='coerce')
+
+    # Calculate the angular distance between the cap center and each grid point.
+    ra_c_rad,dec_c_rad = np.radians([ra_c,dec_c])
+    ra_rad,dec_rad = np.radians(df[['ra', 'dec']].values).T
+    angular_distance_cos = separation(ra_c_rad,dec_c_rad,ra_rad,dec_rad)
+    # Determine whether each grid point is inside the cap.
+    inside_cone = angular_distance_cos >= np.cos(np.deg2rad(radius))
+    df = df[inside_cone]
+    ra_rad, dec_rad = ra_rad[inside_cone], dec_rad[inside_cone]
+
+    if astrometry_corrections:
+        df = apply_astrometry_corrections(df, astrometry_corrections, ra_rad, dec_rad)
+
+    df = df.sort_values(by='mag')
+    df.reset_index(drop=True, inplace=True)
+
+    return df,level,nside,ids,pixel_size,fov_min

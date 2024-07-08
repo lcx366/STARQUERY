@@ -2,8 +2,8 @@ from setuptools import setup,find_packages
 
 setup(
     name='starcatalogquery',
-    version='0.1.14',
-    description='A package to establish an offline star catalog query database',
+    version='1.0.0',
+    description='A package for building an offline star catalog query database',
     author='Chunxiao Li',
     author_email='lcx366@126.com',
     url='https://github.com/lcx366/STARQUERY',
@@ -24,13 +24,17 @@ setup(
     packages = find_packages(),
     include_package_data=True,
     install_requires=[
+        'numpy',
         'scipy',
-        'astropy>=4.3.1',
+        'astropy',
+        'skyfield',
         'pandas',
         'h5py',
-        'colorama',
         'healpy',
         'cartopy',
-        'wget'
+        'wget',
+        'colorama',
+        'sqlalchemy',
+        'natsort'
         ],
 )

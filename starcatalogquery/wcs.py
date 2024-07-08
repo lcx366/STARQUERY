@@ -16,8 +16,7 @@ def Rot(seq, angles, degrees=True):
         angles -> [float or list] Rotation angle(s) in radians (default) or degrees.
         degrees -> [bool,optional,default=True] If True, angles are interpreted as degrees, otherwise radians.
     Outputs:
-        rotation_matrix -> [2D/3D array-like] Rotation matrix (3x3 or array of 3x3 matrices).  
-
+        rotation_matrix -> [2D/3D array-like] Rotation matrix (3x3 or array of 3x3 matrices).
     Note:
         - The function is only suitable for a right-handed reference frame.
         - If multiple angles are provided, they should match the length of 'seq'.
@@ -120,5 +119,4 @@ def xy_catalog(fp_radec,radec,pixel_width,theta=0):
         # 'Rot' function is called to get the rotation matrix
         x,y = Rot('Z',theta,degrees=False)[:-1,:-1] @ np.array(wcs.world_to_pixel(radec))
 
-    # Return the x and y pixel coordinates along with the WCS instance
     return x,y,wcs   
