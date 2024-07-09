@@ -12,7 +12,7 @@ def read_urls(file_path):
     'starcatalogs/raw/sky2000/sky2000-0.csv' 'https://gsss.stsci.edu/webservices/vo/CatalogSearch.aspx?STCS=POLYGON 0.0 90.0,0.0 87.1,45.0 84.1,90.0 87.1&format=csv&catalog=sky2000'
 
     Usage:
-        >>> file_path = 'starcatalogs/raw/sky2000/sky2000.txt'
+        >>> file_path = 'starcatalogs/url/gaiadr3.txt'
         >>> urls = read_urls(file_path)
     Inputs:
         file_path -> [str] The path to the URL file.

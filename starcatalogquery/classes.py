@@ -88,6 +88,7 @@ class StarCatalog(object):
             # For GAIA DER3, GSC 30, UCAC5, USNOB, 2MASS star catalogs
             dir_url = dir_to.split('starcatalogs')[0] + 'starcatalogs/url/'
             url_file = os.path.join(dir_url, f'{sc_name}.txt')
+            os.makedirs(dir_url, exist_ok=True)
 
             if os.path.exists(dir_to):
                 # Check existing star catalog for validity

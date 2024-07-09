@@ -18,7 +18,7 @@ STARQUERY is an archive of scientific routines for establishing an offline star 
 
 ## How to Install
 
-Install STARQUERY with ease using the following pip command in your terminal:
+Install STARQUERY using the pip command in your terminal:
 
 ```
 pip install starcatalogquery
@@ -29,7 +29,7 @@ If an error message similar to "`ERROR: Could not build wheels for cartopy, whic
 
 ```bash
 mamba install h5py
-mmaba install cartopy 
+mamba install cartopy 
 ```
 
 ## How to use
