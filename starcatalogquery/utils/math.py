@@ -67,7 +67,6 @@ def spherical_to_cartesian(ra, dec, r, degrees=True):
         dec -> [array-like] Declination.
         r -> [array-like] Distance.
         degrees -> [bool, optional, default=True] Specifies if RA and Dec are in degrees or radians.
-
     Outputs:
         xyz -> [array-like] Cartesian coordinates as an array of shape (3,) or (N, 3).
     """
@@ -97,7 +96,6 @@ def cartesian_to_spherical(x, y, z, degrees=True):
         y -> [float or array-like] Y coordinate.
         z -> [float or array-like] Z coordinate.
         degrees -> [bool, optional, default=True] Specifies if RA and Dec should be returned in degrees or radians.
-
     Outputs:
         ra_dec_r -> [array-like] Spherical coordinates as an array of shape (3,) or (N, 3).
     """
@@ -137,7 +135,13 @@ def separation(ra1, dec1, ra2, dec2):
 
 def axes_to_antisymmetric_matrices(axes):
     """
-    Convert n rotation axes to n corresponding antisymmetric matrices.
+    Convert rotation axes to corresponding antisymmetric matrices.
+    When a vector rotates around an axis by a small angle θ in a clockwise direction, the rotation matrix can be approximated as
+    I - θ * K, where I is the identity matrix and K is the antisymmetric matrix corresponding to the rotation axis.
+    The antisymmetric matrix K for a rotation axis [ax, ay, az] is defined as:
+        K = [[  0, -az,  ay],
+             [ az,   0, -ax],
+             [-ay,  ax,   0]]
 
     Usage:
         >>> axes = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
@@ -156,7 +160,6 @@ def axes_to_antisymmetric_matrices(axes):
 
     Inputs:
         axes -> [numpy.ndarray] A 2D array of shape (n, 3), where each row is a rotation axis [ax, ay, az].
-
     Outputs:
         antisymmetric_matrices -> [numpy.ndarray] A 3D array of shape (n, 3, 3), where each item is a 3x3 antisymmetric matrix.
     """
