@@ -12,6 +12,7 @@ data_prepare.sspe_load('DE440S')
 # Configure pandas options
 pd.set_option('display.max_columns', None)  # Display all columns in DataFrame outputs
 pd.set_option("display.precision", 8)       # Set the default floating point precision to 8
+pd.set_option('display.width', 1000)  # Set the display width
 
 # The __init__.py file initializes the starcatalogquery package by loading essential data and configuring pandas settings.
 # The iers_load function loads Earth Orientation Parameters and Leap Seconds, which are crucial for accurate astronomical calculations.
