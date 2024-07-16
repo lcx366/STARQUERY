@@ -288,6 +288,10 @@ STARQUERY provides a straightforward method to load local offline star catalog d
 
 ## Change log
 
+- **1.0.1 — Jul 16, 2024**
+
+  - Added parameters that limit the magnitude range to avoid the problem of remote server data overflow and download failure.
+
 - **1.0.0 — Jul 04, 2024**
   
   - Replaced the spherical rectangular partitioning with a multi-level equal-area partitioning strategy based on the HEALPix algorithm.
