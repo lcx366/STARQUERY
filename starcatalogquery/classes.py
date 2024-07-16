@@ -52,7 +52,7 @@ class StarCatalog(object):
         - load: Load star catalogs at various levels of hierarchy from local storage.
     """
 
-    def get(sc_name,dir_to=None):
+    def get(sc_name,mag_range=None,dir_to=None):
         """
         Downloads 'raw' star catalog files from remote servers or loads them from a local directory.
 
@@ -60,7 +60,8 @@ class StarCatalog(object):
             >>> from starcatalogquery import StarCatalog
             >>> sc_raw = StarCatalog.get('at-hyg24')
         Inputs:
-            sc_name -> [str] Name of the star catalog. 
+            sc_name -> [str] Name of the star catalog.
+            mag_range -> [tuple,optional,default=None] Range of magnitudes.
             Available star catalog include 'hyg37','at-hyg24','gaiadr3','gsc30','ucac5','usnob','2mass', etc.
             For more star catalogs, please refer to the Space Telescope Science Institute:
             https://outerspace.stsci.edu/display/GC/WebServices+for+Catalog+Access
@@ -78,7 +79,7 @@ class StarCatalog(object):
         if dir_to is None:
             dir_to = dir_starcatalogs # Set default download directory if not specified
         else:
-            dir_to = os.path.join(dir_to,dir_starcatalogs)   
+            dir_to = os.path.join(dir_to,dir_starcatalogs)
 
         # Handle specific catalogs that require different download methods
         if sc_name in valid_catalogs[:2]:
@@ -90,12 +91,18 @@ class StarCatalog(object):
             url_file = os.path.join(dir_url, f'{sc_name}.txt')
             os.makedirs(dir_url, exist_ok=True)
 
+            # Limit the star magnitude range, otherwise remote servers may cause data overflow issues, leading to download failures
+            if mag_range is None:
+                mag_range = [3, 17]
+            else:
+                mag_range[0] = max(mag_range[0], 3)
+
             if os.path.exists(dir_to):
                 # Check existing star catalog for validity
                 dir_size,file_num,validity = stsci_check(sc_name,dir_to,url_file)
             else:
                 # Download and check star catalog if not already present
-                stsci_download(sc_name, dir_to, url_file)
+                stsci_download(sc_name, mag_range, dir_to, url_file)
                 dir_size,file_num,validity = stsci_check(sc_name,dir_to,url_file)
 
         # Gather star catalog information

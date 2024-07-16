@@ -9,7 +9,7 @@ from .utils.starcatalog_statistic import tiles_statistic
 
 NSIDE = 16  # Default HEALPix partition level, corresponding to K=4 (2^K=NSIDE)
 
-def stsci_download(sc_name, dir_to, url_file):
+def stsci_download(sc_name, mag_range, dir_to, url_file):
     """
     Downloads star catalog tile files, each representing a region of the sky.
     This function supports downloading files for different catalogs such as GAIA DR3, GSC30, UCAC5, USNOB, or 2MASS.
@@ -21,25 +21,30 @@ def stsci_download(sc_name, dir_to, url_file):
         >>> stsci_download(sc_name, dir_to, url_file)
     Inputs:
         sc_name -> [str] Star catalog to download (e.g., 'gaiadr3', 'gsc30', 'ucac5', 'usnob', '2mass').
+        mag_range -> [tuple] Range of magnitude, such as [3,17].
         dir_to -> [str] Directory for storing the star catalog files.
         url_file -> [str] URL file for downloading star catalog.
     Outputs:
         star catalog tile files
     """
+    mag_min,mag_max = mag_range
 
     # Create the directory for tiles if it doesn't exist
     os.makedirs(dir_to, exist_ok=True)
 
-    npix = hp.nside2npix(NSIDE)  # Calculate the number of pixels for the given NSIDE
+    # Calculate the number of pixels for the given NSIDE
+    npix = hp.nside2npix(NSIDE)
 
     print(f'Generating URL list file with {npix} entries.')
+
+    url_prefix = 'https://gsss.stsci.edu/webservices/vo/CatalogSearch.aspx?'
 
     with open(url_file, 'w') as f:
         for k in range(npix):
             corners_vec = hp.boundaries(NSIDE, k)  # Get vector boundaries of each HEALPix pixel
             corners_lonlat = hp.vec2ang(np.transpose(corners_vec),lonlat=True)  # Convert vectors to longitudes and latitudes
             polygon_coords = ','.join(f"{lon} {lat}" for lon, lat in zip(*corners_lonlat))
-            url = f'https://gsss.stsci.edu/webservices/vo/CatalogSearch.aspx?STCS=POLYGON {polygon_coords}&format=csv&catalog={sc_name}'
+            url = f'{url_prefix}STCS=POLYGON {polygon_coords}&format=csv&catalog={sc_name}&magrange={mag_min},{mag_max}'
             file_path = os.path.join(dir_to, f"{sc_name}-{k}.csv")
             f.write(f"'{file_path}' '{url}'\n")  # Write URL to file
 
