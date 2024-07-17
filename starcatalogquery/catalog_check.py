@@ -1,4 +1,4 @@
-import os,re
+import os,re,subprocess
 from glob import glob
 from colorama import Fore
 from natsort import natsorted
@@ -71,13 +71,15 @@ def stsci_check(sc_name, dir_from, url_file):
                 file_size = os.path.getsize(file_path)
                 dir_size += file_size / 1024  # Convert bytes to KB
 
+                # Output the total number of rows in the star catalog file
+                result = subprocess.run(['wc', '-l', file_path], capture_output=True, text=True)
+                star_count = int(result.stdout.split()[0]) - 2  # Subtract the file description line and header line
+
                 # Check the first line for object count consistency
                 with open(file_path, 'r') as fn:
                     firstline = fn.readline().strip()
-                    secondline = fn.readline()
-                    star_count = sum(1 for _ in fn)  # Count remaining lines
 
-                expected_count = int(firstline.split(' : ')[1]) if 'Objects found' in firstline else 0
+                expected_count = int(firstline.split(' : ')[1]) if 'Objects found' in firstline else 1
                 if star_count == expected_count:
                     continue  # Valid file, skip to next
 

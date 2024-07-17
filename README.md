@@ -288,6 +288,11 @@ STARQUERY provides a straightforward method to load local offline star catalog d
 
 ## Change log
 
+- **1.0.2 — Jul 17, 2024**
+
+  - In checking the validity of star catalog files, use the `wc -l` command with the subprocess module to quickly count the number of lines in the CSV file, which is more efficient than a pure Python implementation.
+  - Fixed a bug in the validity check of star catalog files
+
 - **1.0.1 — Jul 16, 2024**
 
   - Added parameters that limit the magnitude range to avoid the problem of remote server data overflow and download failure.
