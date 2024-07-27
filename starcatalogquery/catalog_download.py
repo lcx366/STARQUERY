@@ -7,7 +7,7 @@ from gzip import GzipFile
 from .utils.try_download import wget_download
 from .utils.starcatalog_statistic import tiles_statistic
 
-NSIDE = 16  # Default HEALPix partition level, corresponding to K=4 (2^K=NSIDE)
+NSIDE = 32  # Default HEALPix partition level, corresponding to K=5 (2^K=NSIDE)
 
 def stsci_download(sc_name, mag_range, dir_to, url_file):
     """

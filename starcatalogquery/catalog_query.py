@@ -36,12 +36,12 @@ def create_empty_df(file_path, skip_initial_description=False):
     # Create and return an empty DataFrame with these headers
     return pd.DataFrame(columns=headers)
 
-def _load_files(K4_indices_list, dir_sc, sc_name, _mode, max_num_per_tile=None):
+def _load_files(K5_indices_list, dir_sc, sc_name, _mode, max_num_per_tile=None):
     """
     Generator function that yields star catalog data from specified files and rows based on HEALPix indices.
 
     Inputs:
-        K4_indices_list -> [list] Each sublist contains tuples of (file index, [row indices]) specifying which rows to load from each file group.
+        K5_indices_list -> [list] Each sublist contains tuples of (file index, [row indices]) specifying which rows to load from each file group.
         dir_sc -> [str] Directory where the star catalog files are stored.
         sc_name -> [str] Base name of the star catalog files, expected to be formatted as "<sc_name>-<index>.csv".
         _mode -> [str] Mode that determines the number of header rows to skip; 'raw' mode skips two rows, other modes skip one row.
@@ -50,15 +50,15 @@ def _load_files(K4_indices_list, dir_sc, sc_name, _mode, max_num_per_tile=None):
         pd.DataFrame -> DataFrames containing the specified rows from each file group after sorting and limiting by magnitude.
     """
 
-    if not K4_indices_list:
+    if not K5_indices_list:
         # If no data was generated throughout the loop, yield an empty DataFrame
         file_path = os.path.join(dir_sc, f"{sc_name}-0.csv")
         yield create_empty_df(file_path, initial_skip)
 
     # Setup initial conditions based on _mode before processing any files
     initial_skip = 1 if _mode == 'raw' else 0  # Number of initial rows to skip due to mode
-    # Process each file group specified in K4_indices_list
-    for file_group in K4_indices_list:
+    # Process each file group specified in K5_indices_list
+    for file_group in K5_indices_list:
 
         all_dfs = []  # List to hold all dataframes from current group before sorting and limiting
         for file_index, row_indices in file_group:
@@ -142,10 +142,10 @@ def search_box_raw(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_indices_d
     ids = hp.query_polygon(nside, vertices_uec, inclusive=True,fact=64)
 
     # Query the database to retrieve specific data columns for pixel numbers at a given level from a specified star catalog table. 
-    K4_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
+    K5_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
 
     # Load and concatenate data from relevant tile files
-    dfs = _load_files(K4_indices_list,dir_sc,sc_name,_mode,max_num_per_tile)
+    dfs = _load_files(K5_indices_list,dir_sc,sc_name,_mode,max_num_per_tile)
     
     df = pd.concat(dfs,ignore_index=True)
     if df.empty: 
@@ -244,10 +244,10 @@ def search_cone_raw(center, radius, dir_sc, sc_name, _mode, tb_name, catalog_ind
     ids = hp.query_disc(nside, uec, np.radians(radius), inclusive=True,fact=64)
 
     # Query the database to retrieve specific data columns for pixel numbers at a given level from a specified star catalog table. 
-    K4_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
+    K5_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
 
     # Load and concatenate data from relevant tile files
-    dfs = _load_files(K4_indices_list,dir_sc,sc_name,_mode,max_num_per_tile)
+    dfs = _load_files(K5_indices_list,dir_sc,sc_name,_mode,max_num_per_tile)
     
     df = pd.concat(dfs,ignore_index=True)
     if df.empty: 
@@ -357,10 +357,10 @@ def search_box_reduced(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_indic
     ids = hp.query_polygon(nside, vertices_uec, inclusive=True,fact=64)
 
     # Query the database to retrieve specific data columns for pixel numbers at a given level from a specified star catalog table. 
-    K4_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
+    K5_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
 
     # Load and concatenate data from relevant tile files
-    dfs = _load_files(K4_indices_list,dir_sc,sc_name,_mode,max_num_per_tile)
+    dfs = _load_files(K5_indices_list,dir_sc,sc_name,_mode,max_num_per_tile)
     
     df = pd.concat(dfs,ignore_index=True)
     if df.empty: 
@@ -442,10 +442,10 @@ def search_cone_reduced(center, radius, dir_sc, sc_name, _mode, tb_name, catalog
     ids = hp.query_disc(nside, uec, np.radians(radius), inclusive=True,fact=64)
 
     # Query the database to retrieve specific data columns for pixel numbers at a given level from a specified star catalog table. 
-    K4_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
+    K5_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
  
     # Load and concatenate data from relevant tile files
-    dfs = _load_files(K4_indices_list,dir_sc,sc_name,_mode,max_num_per_tile)
+    dfs = _load_files(K5_indices_list,dir_sc,sc_name,_mode,max_num_per_tile)
     
     df = pd.concat(dfs,ignore_index=True)
     if df.empty: 
@@ -537,10 +537,10 @@ def search_box_simplified(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_in
     ids = hp.query_polygon(nside, vertices_uec, inclusive=True,fact=64)
 
     # Query the database to retrieve specific data columns for pixel numbers at a given level from a specified star catalog table. 
-    K4_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
+    K5_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
 
     # Load and concatenate data from relevant tile files
-    dfs = _load_files(K4_indices_list,dir_sc,sc_name,_mode,max_num_per_tile)
+    dfs = _load_files(K5_indices_list,dir_sc,sc_name,_mode,max_num_per_tile)
     
     df = pd.concat(dfs,ignore_index=True)
     if df.empty: 
@@ -618,10 +618,10 @@ def search_cone_simplified(center, radius, dir_sc, sc_name, _mode, tb_name, cata
     ids = hp.query_disc(nside, uec, np.radians(radius), inclusive=True,fact=64)
 
     # Query the database to retrieve specific data columns for pixel numbers at a given level from a specified star catalog table. 
-    K4_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
+    K5_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
 
     # Load and concatenate data from relevant tile files
-    dfs = _load_files(K4_indices_list,dir_sc,sc_name,_mode,max_num_per_tile)
+    dfs = _load_files(K5_indices_list,dir_sc,sc_name,_mode,max_num_per_tile)
     
     df = pd.concat(dfs,ignore_index=True)
 

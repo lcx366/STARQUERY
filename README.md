@@ -288,6 +288,10 @@ STARQUERY provides a straightforward method to load local offline star catalog d
 
 ## Change log
 
+- **1.0.3 — Jul 27, 2024**
+
+  - Raise the healpix level of the star catalog tiles from K4 to K5 to avoid the trouble of downloading large files from remote servers that are prone to failure.
+
 - **1.0.2 — Jul 17, 2024**
 
   - In checking the validity of star catalog files, use the `wc -l` command with the subprocess module to quickly count the number of lines in the CSV file, which is more efficient than a pure Python implementation.

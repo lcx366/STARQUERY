@@ -3,7 +3,7 @@ from glob import glob
 from colorama import Fore
 from natsort import natsorted
 
-NUM_TILES = 3072  # Default number of HEALPix pixels for (K=4, NSIDE=16)
+NUM_TILES = 12288  # Default number of HEALPix pixels for (K=5, NSIDE=32)
 
 def read_urls(file_path):
     """
@@ -80,13 +80,11 @@ def stsci_check(sc_name, dir_from, url_file):
                     firstline = fn.readline().strip()
 
                 expected_count = int(firstline.split(' : ')[1]) if 'Objects found' in firstline else 1
-                if star_count == expected_count:
-                    continue  # Valid file, skip to next
-
-            # Log invalid or missing files for re-download
-            issue_flag = True
-            url = urls[i]
-            outputf.write(f"'{file_path}' '{url}'\n")  # Write URL to file
+                if star_count != expected_count:
+                    # Log invalid or missing files for re-download
+                    issue_flag = True
+                    outputf.write(f"'{file_path}' '{urls[i]}'\n")  # Write URL to file
+                    os.remove(file_path)
 
     print()
     # Re-download invalid files if necessary

@@ -20,7 +20,7 @@ from .wcs import xy_catalog
 from .invariantfeatures import calculate_invariantfeatures
 from .astrometry_corrections import parallax2dist
 
-TILE_SIZE = 3.66  # Pixel size (in degrees) for HEALPix hierarchy level 'K4'
+TILE_SIZE = 1.83  # Pixel size (in degrees) for HEALPix hierarchy level 'K5'
 
 def format_columns(df, format_dict = {'ra': 8, 'dec': 8, 'pm_ra': 3, 'pm_dec': 3, 'dist': 8, 'mag': 3, 'epoch': 3}):
     """

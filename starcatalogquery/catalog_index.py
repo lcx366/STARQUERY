@@ -118,7 +118,7 @@ def build_catalog_indices(dir_from,sc_name,tb_name):
     indices = np.vstack(indices)
 
     # Save to CSV file
-    column_names = [f'K{i}' for i in K_RANGE] + ['K4_SUB']
+    column_names = [f'K{i}' for i in K_RANGE] + ['K5_SUB']
     df = pd.DataFrame(indices, columns=column_names)
     df = df.sort_values(by=list(df.columns)).reset_index(drop=True)
 
@@ -156,7 +156,7 @@ def generate_catalog_db(catalog_indices_db,catalog_indices_csv):
     # Define the table with metadata and columns
     table = Table(
         tb_name, metadata,
-        Column('K4_SUB', Integer, primary_key=True),
+        Column('K5_SUB', Integer, primary_key=True),
         *(Column(f'K{i}', Integer) for i in K_RANGE)
     )
 
@@ -200,21 +200,21 @@ def index_query_sql(catalog_indices_db, tb_name, level, ids):
     """
     Queries the database to retrieve specific data columns for pixel numbers at a given level
     from a specified star catalog table. This function returns a list of lists, where each inner list
-    contains tuples of 'K4' and a list of 'K4_SUB' values, grouped by 'K4'.
+    contains tuples of 'K5' and a list of 'K5_SUB' values, grouped by 'K5'.
 
     Usage:
         >>> catalog_indices_db = 'starcatalogs/indices/catalogs.db'
         >>> tb_name = 'at-hyg24_mag12.0_epoch2019.5'
         >>> level = 'K6'
         >>> ids = [49150, 49149, 49148]
-        >>> K4_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
+        >>> K5_indices_list = index_query_sql(catalog_indices_db, tb_name, level, ids)
     Inputs:
         catalog_indices_db -> [str] Path to the star catalog index database containing HEALPix tiling data at multiple resolutions.
         tb_name -> [str] Name of the star catalog table, e.g., 'hyg37', 'hyg37_mag9.0_epoch2022.0'.
         level -> [str] The resolution level from which to fetch the pixel numbers, such as 'K1', 'K2', ..., 'K11'
         ids -> [list of int] List of pixel IDs at the specified level, e.g., [49150, 49149].
     Outputs:
-        K4_indices_list -> [list] Each inner list contains tuples, each tuple includes a 'K4' value and a list of 'K4_SUB' values.
+        K5_indices_list -> [list] Each inner list contains tuples, each tuple includes a 'K5' value and a list of 'K5_SUB' values.
     """
     # Create a database connection using SQLAlchemy
     engine = create_engine(f'sqlite:///{catalog_indices_db}')
@@ -222,38 +222,38 @@ def index_query_sql(catalog_indices_db, tb_name, level, ids):
     # Convert the list of IDs into a string suitable for SQL queries
     id_list_str = ', '.join(map(str, ids))
 
-    # Check if level is 'K4' to avoid duplicate columns
-    if level == 'K4':
-        query = f"SELECT K4, K4_SUB FROM '{tb_name}' WHERE K4 IN ({id_list_str})"
+    # Check if level is 'K5' to avoid duplicate columns
+    if level == 'K5':
+        query = f"SELECT K5, K5_SUB FROM '{tb_name}' WHERE K5 IN ({id_list_str})"
     else:
-        query = f"SELECT {level}, K4, K4_SUB FROM '{tb_name}' WHERE {level} IN ({id_list_str})"
+        query = f"SELECT {level}, K5, K5_SUB FROM '{tb_name}' WHERE {level} IN ({id_list_str})"
 
     filtered_df = pd.read_sql_query(query, engine)
 
     if filtered_df.empty:
         return []
 
-    # Check if level is 'K4'
-    if level == 'K4':
-        K4_indices_list = (
-            filtered_df.groupby('K4')['K4_SUB']
+    # Check if level is 'K5'
+    if level == 'K5':
+        K5_indices_list = (
+            filtered_df.groupby('K5')['K5_SUB']
             .apply(list)
             .reset_index()
-            .apply(lambda row: [(row['K4'], row['K4_SUB'])], axis=1)
+            .apply(lambda row: [(row['K5'], row['K5_SUB'])], axis=1)
             .tolist()
         )
     else:
-        # Use pivot_table to restructure data, first group by level, then by K4, and finally convert K4_SUB to list
-        K4_indices_list = (
-            filtered_df.groupby([level, 'K4'])['K4_SUB']
+        # Use pivot_table to restructure data, first group by level, then by K5, and finally convert K5_SUB to list
+        K5_indices_list = (
+            filtered_df.groupby([level, 'K5'])['K5_SUB']
             .apply(list)
             .reset_index()
-            .pivot(index=level, columns='K4', values='K4_SUB')
+            .pivot(index=level, columns='K5', values='K5_SUB')
             .apply(lambda x: list(zip(x.dropna().index, x.dropna())), axis=1)
             .tolist()
         )
 
-    return K4_indices_list
+    return K5_indices_list
 
 def fetch_partitions(db_path, tb_name, level, n_stars, dir_sc, sc_name):
     """
@@ -280,37 +280,37 @@ def fetch_partitions(db_path, tb_name, level, n_stars, dir_sc, sc_name):
     engine = create_engine(f'sqlite:///{db_path}')
 
     # Build SQL query
-    columns = '"K1", "K4", "K4_SUB"' + (f', "{level}"' if level not in ['K1', 'K4'] else '')
+    columns = '"K1", "K5", "K5_SUB"' + (f', "{level}"' if level not in ['K1', 'K5'] else '')
     query = f"SELECT {columns} FROM \"{tb_name}\""
     full_df = pd.read_sql_query(query, engine)
 
     # Preload necessary star catalog data
-    needed_files = full_df['K4'].unique()
+    needed_files = full_df['K5'].unique()
     star_data = {}
-    for k4 in needed_files:
-        file_path = os.path.join(dir_sc, f"{sc_name}-{int(k4)}.csv")
+    for k5 in needed_files:
+        file_path = os.path.join(dir_sc, f"{sc_name}-{int(k5)}.csv")
         if os.path.exists(file_path):
-            star_data[k4] = pd.read_csv(file_path)           
+            star_data[k5] = pd.read_csv(file_path)
 
     results_dict = {}
 
-    # Process levels K5 and above
-    if int(level[1:]) > 4:
-        for (k1, k4, lvl), group in full_df.groupby(['K1', 'K4', level]):
+    # Process levels K6 and above
+    if int(level[1:]) > 5:
+        for (k1, k5, lvl), group in full_df.groupby(['K1', 'K5', level]):
     
             # Check if all indices are within bounds
-            if group['K4_SUB'].max() >= len(star_data[k4]):
-                print(f"Index out of bounds for K4: {k4} with max index {group['K4_SUB'].max()}")
+            if group['K5_SUB'].max() >= len(star_data[k5]):
+                print(f"Index out of bounds for K5: {k5} with max index {group['K5_SUB'].max()}")
                 continue
 
-            relevant_data = star_data[k4].iloc[group['K4_SUB']].copy()
+            relevant_data = star_data[k5].iloc[group['K5_SUB']].copy()
             sorted_data = relevant_data.sort_values(by='mag').head(n_stars)
             results_dict.setdefault(k1, []).append(sorted_data[['ra', 'dec']].to_numpy())
     else:
-        # Process levels K4 and below
+        # Process levels K5 and below
         for (k1, lvl), group in full_df.groupby(['K1', level]):
-            k4_list = group['K4'].unique()
-            combined_df = pd.concat([star_data[k4] for k4 in k4_list])
+            k5_list = group['K5'].unique()
+            combined_df = pd.concat([star_data[k5] for k5 in k5_list])
             sorted_data = combined_df.sort_values(by='mag').head(n_stars)
             results_dict.setdefault(k1, []).append(sorted_data[['ra', 'dec']].to_numpy())
 
