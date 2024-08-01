@@ -297,7 +297,7 @@ class StarCatalogRaw(object):
             for j, tile_file in enumerate(file_list, start=1):
                 desc = f'Reducing {Fore.BLUE}{j}{Fore.RESET} of {self.tiles_num}'
                 print(desc,end='\r')
-                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''])
+                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip')
                 # Applying specific transformations based on the catalog name
                 # units: ra->hourangle, dec->deg, pmra->mas/a, pmdec->mas/a, epoch->2000.0
                 columns_dict = {'pmra':'pm_ra', 'pmdec':'pm_dec'}
@@ -313,7 +313,7 @@ class StarCatalogRaw(object):
             for j, tile_file in enumerate(file_list, start=1):
                 desc = f'Reducing {Fore.BLUE}{j}{Fore.RESET} of {self.tiles_num}'
                 print(desc,end='\r')
-                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''])
+                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],,on_bad_lines='skip')
                 # units: ra->deg, dec->deg, pmra->mas/a, pmdec->mas/a, epoch->2016
                 df_reduced = df.loc[:,['ra','dec','pmra','pmdec','parallax','mag','epoch']]
                 df_reduced = df_reduced.astype(float)
@@ -333,7 +333,7 @@ class StarCatalogRaw(object):
             for j, tile_file in enumerate(file_list, start=1):
                 desc = f'Reducing {Fore.BLUE}{j}{Fore.RESET} of {self.tiles_num}'
                 print(desc,end='\r')
-                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''])
+                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip')
                 # units: ra->deg, dec->deg, rapm->mas/a, decpm->mas/a, epoch->2012
                 df_reduced = df.loc[:,['ra','dec','rapm','decpm','parallax','mag','epoch']]
                 df_reduced = df_reduced.astype(float)
@@ -354,7 +354,7 @@ class StarCatalogRaw(object):
             for j, tile_file in enumerate(file_list, start=1):        
                 desc = f'Reducing {Fore.BLUE}{j}{Fore.RESET} of {self.tiles_num}'
                 print(desc,end='\r')
-                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''])
+                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip')
                 # units: ra->deg, dec->deg, pmur->mas/a, pmud->mas/a, epu->1998.754
                 df_reduced = df.loc[:,['ra','dec','pmur','pmud','mag','epu']]
                 df_reduced = df_reduced.astype(float)
@@ -366,7 +366,7 @@ class StarCatalogRaw(object):
             for j, tile_file in enumerate(file_list, start=1):        
                 desc = f'Reducing {Fore.BLUE}{j}{Fore.RESET} of {self.tiles_num}'
                 print(desc,end='\r')
-                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''])
+                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip')
                 # units: ra->deg, dec->deg, pmRA->mas/a, pmDEC->mas/a, Epoch->1950,mag->unknown
                 df_reduced = df.loc[:,['ra','dec','pmRA','pmDEC','mag','Epoch']]
                 df_reduced = df_reduced.astype(float)
@@ -378,7 +378,7 @@ class StarCatalogRaw(object):
             for j, tile_file in enumerate(file_list, start=1):   
                 desc = f'Reducing {Fore.BLUE}{j}{Fore.RESET} of {self.tiles_num}'
                 print(desc,end='\r')
-                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''])
+                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip')
                 # units: ra->deg, dec->deg, jdate->2451063.6417
                 df_reduced = df.loc[:,['ra','dec','mag','jdate']]
                 df_reduced = df_reduced.astype(float)
