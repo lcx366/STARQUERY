@@ -292,6 +292,15 @@ class StarCatalogRaw(object):
         sc_name = self.sc_name 
         print(f'Reducing the star catalog {sc_name}, which may take a considerable amount of time...')
 
+        def try_convert_to_float(x):
+            """
+            Attempt to convert the value to a float, if unsuccessful, return NaN
+            """
+            try:
+                return float(x)
+            except ValueError:
+                return np.nan
+
         if sc_name in ['hyg37','at-hyg24']:
             # Processing each file in the raw star catalog directory
             for j, tile_file in enumerate(file_list, start=1):
@@ -300,11 +309,11 @@ class StarCatalogRaw(object):
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip')
                 # Applying specific transformations based on the catalog name
                 # units: ra->hourangle, dec->deg, pmra->mas/a, pmdec->mas/a, epoch->2000.0
-                columns_dict = {'pmra':'pm_ra', 'pmdec':'pm_dec'}
-                df.rename(columns=columns_dict, inplace=True)
+                rename_dict = {'pmra':'pm_ra', 'pmdec':'pm_dec'}
+                df.rename(columns=rename_dict, inplace=True)
                 df_reduced = df.loc[:,['ra','dec','pm_ra','pm_dec','dist','mag']] # distance is in parsecs
                 df_reduced['epoch'] = '2000.0'
-                df_reduced = df_reduced.astype(float)
+                df_reduced = df_reduced.map(try_convert_to_float)
                 df_reduced['ra'] = df_reduced['ra']*15 # Convert hourangle to deg
                 df_reduced['dist'] = df_reduced['dist'] / 1e3  # Convert pc to kpc
                 df_reduced = format_columns(df_reduced)
@@ -313,10 +322,13 @@ class StarCatalogRaw(object):
             for j, tile_file in enumerate(file_list, start=1):
                 desc = f'Reducing {Fore.BLUE}{j}{Fore.RESET} of {self.tiles_num}'
                 print(desc,end='\r')
-                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],,on_bad_lines='skip')
+                # Define the columns to be read and the renamed mapping after reading
+                original_columns = ['ra', 'dec', 'pmra', 'pmdec', 'parallax', 'mag', 'epoch']
+                rename_dict = {'pmra': 'pm_ra', 'pmdec': 'pm_dec'}
+                # Read star catalog tile files, select only the required columns
+                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip',usecols=original_columns)
                 # units: ra->deg, dec->deg, pmra->mas/a, pmdec->mas/a, epoch->2016
-                df_reduced = df.loc[:,['ra','dec','pmra','pmdec','parallax','mag','epoch']]
-                df_reduced = df_reduced.astype(float)
+                df_reduced = df.map(try_convert_to_float)
                 # Calculate distance from parallax
                 df_reduced['dist'] = parallax2dist(df_reduced['parallax'])
                 parallax_index = df_reduced.columns.get_loc('parallax')
@@ -325,18 +337,19 @@ class StarCatalogRaw(object):
                 # Insert the 'dist' column in the position of the original 'parallax' column
                 df_reduced.insert(parallax_index, 'dist', df_reduced.pop('dist'))
                 # Rename columns
-                columns_dict = {'pmra': 'pm_ra', 'pmdec': 'pm_dec'}
-                df_reduced.rename(columns=columns_dict, inplace=True)
+                df_reduced.rename(columns=rename_dict, inplace=True)
                 df_reduced = format_columns(df_reduced)
                 df_reduced.to_csv(tile_file.replace('raw','reduced'),index=False)
         elif sc_name == 'gsc30':
             for j, tile_file in enumerate(file_list, start=1):
                 desc = f'Reducing {Fore.BLUE}{j}{Fore.RESET} of {self.tiles_num}'
                 print(desc,end='\r')
-                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip')
+                # Define the columns to be read and the renamed mapping after reading
+                original_columns = ['ra','dec','rapm','decpm','parallax','mag','epoch']
+                rename_dict = {'rapm':'pm_ra', 'decpm':'pm_dec'}
+                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip',usecols=original_columns)
                 # units: ra->deg, dec->deg, rapm->mas/a, decpm->mas/a, epoch->2012
-                df_reduced = df.loc[:,['ra','dec','rapm','decpm','parallax','mag','epoch']]
-                df_reduced = df_reduced.astype(float)
+                df_reduced = df.map(try_convert_to_float)
                 # Calculate distance from parallax
                 df_reduced['dist'] = parallax2dist(df_reduced['parallax'])
                 # Get the position of the 'parallax' column
@@ -346,42 +359,46 @@ class StarCatalogRaw(object):
                 # Insert the 'dist' column in the position of the original 'parallax' column
                 df_reduced.insert(parallax_index, 'dist', df_reduced.pop('dist'))
                 # Rename columns
-                columns_dict = {'rapm':'pm_ra', 'decpm':'pm_dec'}
-                df_reduced.rename(columns=columns_dict, inplace=True)
+                df_reduced.rename(columns=rename_dict, inplace=True)
                 df_reduced = format_columns(df_reduced)
                 df_reduced.to_csv(tile_file.replace('raw','reduced'),index=False)
         elif sc_name == 'ucac5':
             for j, tile_file in enumerate(file_list, start=1):        
                 desc = f'Reducing {Fore.BLUE}{j}{Fore.RESET} of {self.tiles_num}'
                 print(desc,end='\r')
-                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip')
+                # Define the columns to be read and the renamed mapping after reading
+                original_columns = ['ra','dec','pmur','pmud','mag','epu']
+                rename_dict = {'pmur':'pm_ra', 'pmud':'pm_dec','epu':'epoch'}
+                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip',usecols=original_columns)
                 # units: ra->deg, dec->deg, pmur->mas/a, pmud->mas/a, epu->1998.754
-                df_reduced = df.loc[:,['ra','dec','pmur','pmud','mag','epu']]
-                df_reduced = df_reduced.astype(float)
-                columns_dict = {'pmur':'pm_ra', 'pmud':'pm_dec','epu':'epoch'}
-                df_reduced.rename(columns=columns_dict, inplace=True)
+                df_reduced = df.map(try_convert_to_float)
+                # Rename columns
+                df_reduced.rename(columns=rename_dict, inplace=True)
                 df_reduced = format_columns(df_reduced)
                 df_reduced.to_csv(tile_file.replace('raw','reduced'),index=False)
         elif sc_name == 'usnob':
             for j, tile_file in enumerate(file_list, start=1):        
                 desc = f'Reducing {Fore.BLUE}{j}{Fore.RESET} of {self.tiles_num}'
                 print(desc,end='\r')
-                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip')
+                # Define the columns to be read and the renamed mapping after reading
+                original_columns = ['ra','dec','pmRA','pmDEC','mag','Epoch']
+                rename_dict = {'pmRA':'pm_ra', 'pmDEC':'pm_dec','Epoch':'epoch'}
+                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip',usecols=original_columns)
                 # units: ra->deg, dec->deg, pmRA->mas/a, pmDEC->mas/a, Epoch->1950,mag->unknown
-                df_reduced = df.loc[:,['ra','dec','pmRA','pmDEC','mag','Epoch']]
-                df_reduced = df_reduced.astype(float)
-                columns_dict = {'pmRA':'pm_ra', 'pmDEC':'pm_dec','Epoch':'epoch'}
-                df_reduced.rename(columns=columns_dict, inplace=True)
+                df_reduced = df.map(try_convert_to_float)
+                # Rename columns
+                df_reduced.rename(columns=rename_dict, inplace=True)
                 df_reduced = format_columns(df_reduced)
                 df_reduced.to_csv(tile_file.replace('raw','reduced'),index=False)  
         elif sc_name == '2mass':
             for j, tile_file in enumerate(file_list, start=1):   
                 desc = f'Reducing {Fore.BLUE}{j}{Fore.RESET} of {self.tiles_num}'
                 print(desc,end='\r')
-                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip')
+                # Define the columns to be read and the renamed mapping after reading
+                original_columns = ['ra','dec','mag','jdate']
+                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip',usecols=original_columns)
                 # units: ra->deg, dec->deg, jdate->2451063.6417
-                df_reduced = df.loc[:,['ra','dec','mag','jdate']]
-                df_reduced = df_reduced.astype(float)
+                df_reduced = df.map(try_convert_to_float)
                 # Convert Julian date to epoch year
                 df_reduced['epoch'] = Time(df_reduced['jdate'], format='jd').jyear
                 df_reduced.pop('jdate')
