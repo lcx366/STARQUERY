@@ -235,24 +235,15 @@ def index_query_sql(catalog_indices_db, tb_name, level, ids):
 
     # Check if level is 'K5'
     if level == 'K5':
-        K5_indices_list = (
-            filtered_df.groupby('K5')['K5_SUB']
-            .apply(list)
-            .reset_index()
-            .apply(lambda row: [(row['K5'], row['K5_SUB'])], axis=1)
-            .tolist()
-        )
+        grouped = filtered_df.groupby('K5')['K5_SUB'].apply(list).reset_index()
+        K5_indices_list = grouped.apply(lambda row: [(row['K5'], row['K5_SUB'])], axis=1).tolist()
+
     else:
         # Use pivot_table to restructure data, first group by level, then by K5, and finally convert K5_SUB to list
-        K5_indices_list = (
-            filtered_df.groupby([level, 'K5'])['K5_SUB']
-            .apply(list)
-            .reset_index()
-            .pivot(index=level, columns='K5', values='K5_SUB')
-            .apply(lambda x: list(zip(x.dropna().index, x.dropna())), axis=1)
-            .tolist()
-        )
-
+        grouped = filtered_df.groupby([level, 'K5'])['K5_SUB'].apply(list).reset_index()
+        pivoted = grouped.pivot(index=level, columns='K5', values='K5_SUB')
+        K5_indices_list = pivoted.apply(lambda x: list(zip(x.dropna().index, x.dropna())), axis=1).tolist()
+        
     return K5_indices_list
 
 def fetch_partitions(db_path, tb_name, level, n_stars, dir_sc, sc_name):

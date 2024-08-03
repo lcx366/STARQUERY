@@ -292,28 +292,22 @@ class StarCatalogRaw(object):
         sc_name = self.sc_name 
         print(f'Reducing the star catalog {sc_name}, which may take a considerable amount of time...')
 
-        def try_convert_to_float(x):
-            """
-            Attempt to convert the value to a float, if unsuccessful, return NaN
-            """
-            try:
-                return float(x)
-            except ValueError:
-                return np.nan
-
         if sc_name in ['hyg37','at-hyg24']:
+            if sc_name == 'hyg37':
+                original_columns = ['ra','dec','pmra','pmdec','dist','mag']
+            elif sc_name == 'at-hyg24':   
+                original_columns = ['ra','dec','pm_ra','pm_dec','dist','mag']
+            rename_dict = {'pmra':'pm_ra', 'pmdec':'pm_dec'}    
             # Processing each file in the raw star catalog directory
             for j, tile_file in enumerate(file_list, start=1):
                 desc = f'Reducing {Fore.BLUE}{j}{Fore.RESET} of {self.tiles_num}'
                 print(desc,end='\r')
-                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip')
+                df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip',usecols=original_columns)
                 # Applying specific transformations based on the catalog name
-                # units: ra->hourangle, dec->deg, pmra->mas/a, pmdec->mas/a, epoch->2000.0
-                rename_dict = {'pmra':'pm_ra', 'pmdec':'pm_dec'}
+                # units: ra->hourangle, dec->deg, pmra->mas/a, pmdec->mas/a, dist->parsecs, epoch->2000.0
                 df.rename(columns=rename_dict, inplace=True)
-                df_reduced = df.loc[:,['ra','dec','pm_ra','pm_dec','dist','mag']] # distance is in parsecs
-                df_reduced['epoch'] = '2000.0'
-                df_reduced = df_reduced.map(try_convert_to_float)
+                df['epoch'] = '2000.0'
+                df_reduced = df.apply(pd.to_numeric,errors='coerce')
                 df_reduced['ra'] = df_reduced['ra']*15 # Convert hourangle to deg
                 df_reduced['dist'] = df_reduced['dist'] / 1e3  # Convert pc to kpc
                 df_reduced = format_columns(df_reduced)
@@ -328,7 +322,7 @@ class StarCatalogRaw(object):
                 # Read star catalog tile files, select only the required columns
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip',usecols=original_columns)
                 # units: ra->deg, dec->deg, pmra->mas/a, pmdec->mas/a, epoch->2016
-                df_reduced = df.map(try_convert_to_float)
+                df_reduced = df.apply(pd.to_numeric,errors='coerce')
                 # Calculate distance from parallax
                 df_reduced['dist'] = parallax2dist(df_reduced['parallax'])
                 parallax_index = df_reduced.columns.get_loc('parallax')
@@ -349,7 +343,7 @@ class StarCatalogRaw(object):
                 rename_dict = {'rapm':'pm_ra', 'decpm':'pm_dec'}
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip',usecols=original_columns)
                 # units: ra->deg, dec->deg, rapm->mas/a, decpm->mas/a, epoch->2012
-                df_reduced = df.map(try_convert_to_float)
+                df_reduced = df.apply(pd.to_numeric,errors='coerce')
                 # Calculate distance from parallax
                 df_reduced['dist'] = parallax2dist(df_reduced['parallax'])
                 # Get the position of the 'parallax' column
@@ -371,7 +365,7 @@ class StarCatalogRaw(object):
                 rename_dict = {'pmur':'pm_ra', 'pmud':'pm_dec','epu':'epoch'}
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip',usecols=original_columns)
                 # units: ra->deg, dec->deg, pmur->mas/a, pmud->mas/a, epu->1998.754
-                df_reduced = df.map(try_convert_to_float)
+                df_reduced = df.apply(pd.to_numeric,errors='coerce')
                 # Rename columns
                 df_reduced.rename(columns=rename_dict, inplace=True)
                 df_reduced = format_columns(df_reduced)
@@ -385,7 +379,7 @@ class StarCatalogRaw(object):
                 rename_dict = {'pmRA':'pm_ra', 'pmDEC':'pm_dec','Epoch':'epoch'}
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip',usecols=original_columns)
                 # units: ra->deg, dec->deg, pmRA->mas/a, pmDEC->mas/a, Epoch->1950,mag->unknown
-                df_reduced = df.map(try_convert_to_float)
+                df_reduced = df.apply(pd.to_numeric,errors='coerce')
                 # Rename columns
                 df_reduced.rename(columns=rename_dict, inplace=True)
                 df_reduced = format_columns(df_reduced)
@@ -398,7 +392,7 @@ class StarCatalogRaw(object):
                 original_columns = ['ra','dec','mag','jdate']
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip',usecols=original_columns)
                 # units: ra->deg, dec->deg, jdate->2451063.6417
-                df_reduced = df.map(try_convert_to_float)
+                df_reduced = df.apply(pd.to_numeric,errors='coerce')
                 # Convert Julian date to epoch year
                 df_reduced['epoch'] = Time(df_reduced['jdate'], format='jd').jyear
                 df_reduced.pop('jdate')

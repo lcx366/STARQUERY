@@ -288,6 +288,10 @@ STARQUERY provides a straightforward method to load local offline star catalog d
 
 ## Change log
 
+- **1.0.4 — Aug 03, 2024**
+
+  - Fixed the memory overflow issue caused by processing giant star catalog tile files.
+
 - **1.0.3 — Jul 27, 2024**
 
   - Raise the healpix level of the star catalog tiles from K4 to K5 to avoid the trouble of downloading large files from remote servers that are prone to failure.

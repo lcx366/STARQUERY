@@ -5,6 +5,23 @@ from natsort import natsorted
 
 NUM_TILES = 12288  # Default number of HEALPix pixels for (K=5, NSIDE=32)
 
+def find_smallest_csv_file(dir_from):
+    """
+    Quickly find the path of the smallest star catalog tile file.
+
+    Inputs:
+        dir_from -> [str] Directory of the star catalog tile files. Expected format: '<your_path>/starcatalogs/raw/<sc_name>/'
+    Outputs:
+        smallest_file -> [str] Path of the smallest tile file.
+    """
+    # Find all CSV files and obtain their file sizes
+    csv_files = glob.glob(os.path.join(dir_from, '*.csv'))
+
+    # Quickly find the smallest file
+    smallest_file = min(csv_files, key=os.path.getsize, default=None)
+
+    return smallest_file
+
 def read_urls(file_path):
     """
     Reads the URL file.
@@ -85,13 +102,23 @@ def stsci_check(sc_name, dir_from, url_file):
                     issue_flag = True
                     outputf.write(f"'{file_path}' '{urls[i]}'\n")  # Write URL to file
                     os.remove(file_path)
+            else:
+                issue_flag = True
+                outputf.write(f"'{file_path}' '{urls[i]}'\n")
 
     print()
     # Re-download invalid files if necessary
     if issue_flag:
         cmd = f"cat '{temp_url}' | xargs -P 16 -n 2 wget -c -O"
         os.system(cmd)
-        print('Warnings: There may still be invalid files, which need to be confirmed manually.')
+        # Extract the smallest star catalog tile file
+        smallest_tile_file = find_smallest_csv_file(dir_from)
+        # Verify the validity of the star catalog tile file
+        with open(smallest_tile_file, 'r') as csvfile:
+            first_line = csvfile.readline().strip()
+
+        if "Objects found" not in first_line:
+            print('The star catalog tile files are incomplete, which need to be confirmed manually. You may try downloading again.')
     else:
         print('All star catalog tile files are valid.')
 
