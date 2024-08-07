@@ -111,7 +111,7 @@ def build_catalog_indices(dir_from,sc_name,tb_name):
 
         # Calculate the indices for each star in a single tile file across different nsides.
         tile_indices = calculate_star_indices(file, nsides)
-        tile_indices[:,3] = i
+        tile_indices[:,4] = i
         indices.append(tile_indices)
     
     # Concatenate all results into a large array
