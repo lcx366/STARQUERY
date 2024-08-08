@@ -288,7 +288,7 @@ STARQUERY provides a straightforward method to load local offline star catalog d
 
 ## Change log
 
-- **1.0.4 — Aug 03, 2024**
+- **1.0.5 — Aug 08, 2024**
 
   - Fixed the memory overflow issue caused by processing giant star catalog tile files.
 
