@@ -65,18 +65,19 @@ def calculate_star_indices(tile_path, nsides):
         indices -> [numpy.ndarray] 2D array, each row represents a star, each column represents a level.
     """
     df = pd.read_csv(tile_path)
-    ra, dec = df['ra'], df['dec']
-    
+    n = len(df)
     # Initialize the index array
-    indices = np.empty((len(df), len(nsides)+1), dtype=int)
-    
-    # Compute the pixel number of all stars for each level
-    for i, nside in enumerate(nsides):
-        pixels = hp.ang2pix(nside, ra, dec, lonlat=True)
-        indices[:, i] = pixels
+    indices = np.empty((n, len(nsides)+1), dtype=int)
 
-    # Fill the last column with sequential IDs
-    indices[:, -1] = np.arange(len(df))    
+    if n > 0:
+        ra, dec = df['ra'], df['dec']
+        # Compute the pixel number of all stars for each level
+        for i, nside in enumerate(nsides):
+            pixels = hp.ang2pix(nside, ra, dec, lonlat=True)
+            indices[:, i] = pixels
+
+        # Fill the last column with sequential IDs
+        indices[:, -1] = np.arange(n)  
     
     return indices
 
