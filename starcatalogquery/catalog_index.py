@@ -425,7 +425,7 @@ def read_h5_hashes(infile):
     Parse the HDF5 file containing geometric invariants of star configurations for each level and partition.
 
     Usage:
-        >>> infile = 'starcatalogs/indices/at-hyg24_mag12.0_epoch2019.5_triangles.h5'
+        >>> infile = 'starcatalogs/indices/at-hyg24_mag13.0_epoch2019.5_triangles_K1_K6.h5'
         >>> data = read_h5_hashes(infile)
     Inputs:
         infile -> [str] Path to the HDF5 file.

@@ -913,14 +913,13 @@ class StarCatalogSimplified(object):
         """
 
         if infile is None:
-            if not hasattr(self,'hashed_data'):
-                if not hasattr(self,'hashed_h5'):
+            if not hasattr(self, 'hashed_data'):
+                if not hasattr(self, 'hashed_h5'):
                     raise Exception('No h5 hashed file provided.')
-                else:
-                    infile = self.hashed_h5
-                    self.hashed_data = read_h5_hashes(infile)
-        else:
-            self.hashed_data = read_h5_hashes(infile)
+                infile = self.hashed_h5
+
+        self.hashed_data = read_h5_hashes(infile)
+        self._mode_invariants = infile.split('_')[-3]
 
 class CatalogDB(object):
     """
