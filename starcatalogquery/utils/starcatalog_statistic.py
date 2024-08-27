@@ -1,6 +1,8 @@
 from glob import glob
 import os
 
+NUM_TILES = 12288  # Default number of HEALPix pixels for (K=5, NSIDE=32)
+
 def tiles_statistic(dir_to):
     """
     Counts the total size and number of tile files in a star catalog directory and assesses the catalog's validity.
@@ -23,7 +25,7 @@ def tiles_statistic(dir_to):
     dir_size = sum([os.path.getsize(file) / 1024 for file in file_list])  # Size in KB
 
     # Check if the number of files matches the expected count based on tile size
-    expected_file_count = 3072  # Example expected file count for a full catalog
+    expected_file_count = NUM_TILES  # Expected file count for a full catalog
     validity = file_num == expected_file_count
 
     # Format the directory size into a human-readable format

@@ -14,6 +14,7 @@ from .wcs import xy_catalog
 from .invariantfeatures import unique_triangles,unique_quads
 
 K_RANGE = range(1, 12)  # Levels for star catalog indexing, from 1 to 11. Higher levels mean finer sky partitions.
+N_STARS = 5 # Number of stars to extract for each partition.
 
 def find_healpix_level(fov_min):
     """
@@ -354,7 +355,7 @@ def sort_data_by_dec(data):
     
     return output_np[:,:2],output_np[:,2].astype(int)
 
-def h5_hashes(db_path, tb_name, dir_sc, sc_name, k_min,k_max,mode_invariants,pixel_width=0.01, theta=0):
+def h5_hashes(db_path, tb_name, dir_sc, sc_name, k_min,k_max,mode_invariants,pixel_width=0.001, theta=0):
     """
     For each region of the sky, this function calculates geometric invariants of star configurations, such as triangle
     edge length ratios or quadrilateral invariants (based on methods from astrometry.net). These invariants are useful
@@ -376,7 +377,7 @@ def h5_hashes(db_path, tb_name, dir_sc, sc_name, k_min,k_max,mode_invariants,pix
         k_min -> [int] Minimum HEALPix hierarchy level.
         k_max -> [int] Maximum HEALPix hierarchy level.
         mode_invariants -> [str] Type of invariants to calculate ('triangles' or 'quads').
-        pixel_width -> [float, optional, default=0.01] Pixel width in degrees.
+        pixel_width -> [float, optional, default=0.001] Pixel width in degrees.
         theta -> [float, optional, default=0] Rotation angle in degrees.
     Outputs:
         outh5 -> [str] Path to the generated HDF5 file.
@@ -396,7 +397,6 @@ def h5_hashes(db_path, tb_name, dir_sc, sc_name, k_min,k_max,mode_invariants,pix
             for i in range(k_min, k_max + 1):  # Iterate through the levels in the range
                 lvl = f"K{i}"
                 print(f'Generating hdf5 data in level {Fore.BLUE}{lvl}{Fore.RESET} of {"K1 -> K11"}', end='\r')
-                N_STARS = 10 if lvl == 'K1' else 6  # 6 to 10 stars are suitable
 
                 data_dict = fetch_partitions(db_path, tb_name, lvl, N_STARS, dir_sc, sc_name)
 

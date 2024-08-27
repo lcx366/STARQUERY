@@ -288,6 +288,13 @@ STARQUERY provides a straightforward method to load local offline star catalog d
 
 ## Change log
 
+- **1.0.6 — Aug 27, 2024**
+
+  - The number of nearest neighbor stars considered when constructing geometric invariants has been increased from the previous value to 10.
+  - The pixel scale used for converting between pixel coordinates and astronomical coordinates via WCS (World Coordinate System) transformations has been refined from *0.01 degrees/pixel* to *0.001 degrees/pixel*.
+  - The number of stars extracted per tile at all levels has been reduced to 5 during the generation of hash files for geometric invariants.
+  - A new class, `H5HashesData`, has been introduced.
+
 - **1.0.5 — Aug 08, 2024**
 
   - Fixed the memory overflow issue caused by processing giant star catalog tile files.

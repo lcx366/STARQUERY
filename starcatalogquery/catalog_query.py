@@ -93,7 +93,7 @@ def _load_files(K5_indices_list, dir_sc, sc_name, _mode, max_num_per_tile=None):
 
         yield combined_df
 
-def search_box_raw(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_indices_db, mag_threshold, t_pm, fov_min,max_num_per_tile=None):
+def search_box_raw(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_indices_db, mag_threshold, t_pm, fov_min, max_num_per_tile=None):
     """
     This function performs a rectangular search of stars in specified star catalogs within a given RA/Dec box.
     It applies magnitude filtering and proper motion correction based on the input parameters.
@@ -487,7 +487,7 @@ def search_cone_reduced(center, radius, dir_sc, sc_name, _mode, tb_name, catalog
 
     return df,level,nside,ids,pixel_size,fov_min
 
-def search_box_simplified(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_indices_db, fov_min,max_num_per_tile=None,astrometry_corrections={}):
+def search_box_simplified(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_indices_db, fov_min, max_num_per_tile=None,astrometry_corrections={}):
     """
     This function performs a rectangular search of stars in specified simplified star catalogs within a given RA/Dec box.
     It applies various astrometry corrections based on the input parameters.

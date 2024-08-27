@@ -461,7 +461,7 @@ class StarCatalogRaw(object):
             If None, it takes the search diameter as the value.
             max_num -> [int,optional,default=None] Maximum number of stars to include in the search, sorted by brightness.
             If None, includes all stars meeting the magnitude criteria.
-            max_num_per_tile [int,optional,default=None] Maximum number of stars per tile to include in the search.
+            max_num_per_tile -> [int,optional,default=None] Maximum number of stars per tile to include in the search.
         Outputs:
             Stars: An instance of Stars with the search results.
         """
@@ -695,7 +695,7 @@ class StarCatalogReduced(object):
             If None, it takes the search diameter as the value.
             max_num -> [int,optional,default=None] Maximum number of stars to include in the search, sorted by brightness.
             If None, includes all stars meeting the magnitude criteria.
-            max_num_per_tile [int,optional,default=None] Maximum number of stars per tile to include in the search.
+            max_num_per_tile -> [int,optional,default=None] Maximum number of stars per tile to include in the search.
         Outputs:
             stars -> [Stars object] An instance of Stars with the search results.
         """
@@ -728,7 +728,6 @@ class StarCatalogSimplified(object):
         - description (str): A brief description or summary of the catalog.
         - _mode_invariants -> [str] Mode of geometric invariants after executing h5_hashes, e.g., 'triangles', 'quads'.
         - hashed_h5 -> [str] A h5-formatted hashed file for star catalog geometric invariants
-        - hashed_data -> [dict] A dictionary containing the geometric invariants data from the h5 file.
 
     Methods:
         - _load: Loads the simplified star catalog from a specified directory.
@@ -859,7 +858,7 @@ class StarCatalogSimplified(object):
             fov_min -> [float,optional,default=None] Field of view parameters in degrees.
             max_num -> [int,optional,default=None] Maximum number of stars to include in the search, sorted by brightness.
             If None, includes all stars meeting the magnitude criteria.
-            max_num_per_tile [int,optional,default=None] Maximum number of stars per tile to include in the search.
+            max_num_per_tile -> [int,optional,default=None] Maximum number of stars per tile to include in the search.
             astrometry_corrections -> [dict, optional, default={}] Dictionary specifying the types of astrometry corrections to apply.
                 - 't' -> [str] Observation time in UTC, such as '2019-02-26T20:11:14.347'.
                 - 'proper-motion' -> [None] If present, apply proper motion correction.
@@ -895,10 +894,9 @@ class StarCatalogSimplified(object):
             hashed_h5 -> Path to the h5-formatted hashed file.
         """
         hashed_h5 = h5_hashes(self._db_path, self._tb_name, self.tiles_dir, self.sc_name, k_min,k_max, mode_invariants)
+
         self.hashed_h5 = hashed_h5
         self._mode_invariants = mode_invariants
-
-        return self
 
     def read_h5_hashes(self,infile=None):
         """
@@ -909,24 +907,60 @@ class StarCatalogSimplified(object):
         Inputs:
             infile -> [str,optional,default=None] Path to the h5 hashed file.
         Outputs:
-            data -> [dict] A dictionary containing the geometric invariants data from the h5 file.
+            data -> [H5HashesData] An instance of H5HashesData containing the geometric invariants data from the h5 file.
         """
 
         if infile is None:
-            if not hasattr(self, 'hashed_data'):
-                if not hasattr(self, 'hashed_h5'):
-                    raise Exception('No h5 hashed file provided.')
+            if hasattr(self, 'hashed_h5'): 
                 infile = self.hashed_h5
+            else:    
+                raise Exception('No h5 hashed file provided.')
+            
+        hashed_data = read_h5_hashes(infile)
+        mode_invariants = infile.split('_')[-3]
 
-        self.hashed_data = read_h5_hashes(infile)
-        self._mode_invariants = infile.split('_')[-3]
+        return H5HashesData(self, hashed_data, mode_invariants)
+
+class H5HashesData:
+    """
+    A class to manage hashed data related to simplified star catalogs and mode invariants.
+
+    Attributes:
+        - sc_simplified -> [StarCatalogSimplified object] The simplified star catalog data.
+        - hashed_data -> [dict] The hashed representation of the geometric invariants data.
+        - mode_invariants -> [str] Mode of geometric invariants
+    """
+    
+    def __init__(self, sc_simplified, hashed_data, mode_invariants):
+        """
+        Initializes a new instance of the H5HashesData class.
+
+        Inputs:
+            - sc_simplified -> [StarCatalogSimplified object] The simplified star catalog data.
+            - hashed_data -> [dict] The hashed representation of the geometric invariants data.
+            - mode_invariants -> [str] Mode of geometric invariants
+        """ 
+        self.sc_simplified = sc_simplified
+        self.hashed_data = hashed_data
+        self.mode_invariants = mode_invariants    
+
+    def __repr__(self):
+
+        """
+        String representation of the H5HashesData instance.
+
+        Returns:
+            A formatted string that provides a summary of the H5HashesData instance.
+        """
+
+        return f"<H5HashesData object: mode_invariants={self.mode_invariants}>"        
 
 class CatalogDB(object):
     """
     SQLite Database of the star catalog indices.
 
     Attributes:
-        - db_path (str): Path to the database file.
+        - db_path -> [str] Path to the database file.
     Methods:
         - add_table: Adds a new table to the database.
         - del_table: Deletes an existing table from the database.
@@ -1054,7 +1088,6 @@ class Stars(object):
         df['pixelx'],df['pixely'] = x,y
         self.xy = np.stack([x,y]).T
         self.wcs = wcs
-        return self
 
     def invariantfeatures(self,mode_invariants='triangles'):
         """
@@ -1076,7 +1109,6 @@ class Stars(object):
             raise Exception("The pixel coordinates of stars should be calculated first by `.pixel_xy(pixel_width`)")
         inv_uniq,vrtx_uniq,inv_uniq_tree = calculate_invariantfeatures(self.xy, mode_invariants)
         self.invariants,self.asterisms,self.kdtree = inv_uniq,vrtx_uniq,inv_uniq_tree
-        return self
 
     def tiles_draw(self):
         """
