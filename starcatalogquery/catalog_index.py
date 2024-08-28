@@ -14,7 +14,16 @@ from .wcs import xy_catalog
 from .invariantfeatures import unique_triangles,unique_quads
 
 K_RANGE = range(1, 12)  # Levels for star catalog indexing, from 1 to 11. Higher levels mean finer sky partitions.
-N_STARS = 5 # Number of stars to extract for each partition.
+K_RANGE_INVERSE = K_RANGE[::-1]
+N_STARS = 6 # Number of stars to extract for each partition.
+
+NSIDE = np.power(2,K_RANGE_INVERSE)  # Calculate nside for each K
+NPIX = hp.nside2npix(NSIDE)  # Calculate the total number of pixels for each nside
+PIXEL_SIZE = np.degrees(np.sqrt(4 * np.pi / NPIX))  # Calculate the pixel size in degrees, using the area of a pixel
+
+# Define reasonable limits for FOV
+LOWER_FOV = PIXEL_SIZE[0] * 2  # lower limits of reasonable field of view in degrees
+UPPER_FOV = PIXEL_SIZE[-1] * 2  # upper limits of reasonable field of view in degrees
 
 def find_healpix_level(fov_min):
     """
@@ -31,25 +40,15 @@ def find_healpix_level(fov_min):
         npix -> [int] The total number of pixels.
         pixel_size -> [float] Approximate pixel size in degrees.
     """
-    K = np.arange(12)[::-1]  # Consider K values from 2^11 to 2^0 for practical purposes
-    nside = 2**K  # Calculate nside for each K
-    npix = hp.nside2npix(nside)  # Calculate the total number of pixels for each nside
-    pixel_size = np.degrees(np.sqrt(4 * np.pi / npix))  # Calculate the pixel size in degrees, using the area of a pixel
-
-    # Define reasonable limits for FOV
-    lower_fov = pixel_size[0]*1.5  # lower limits of reasonable field of view in degrees
-    upper_fov = pixel_size[-1]*1.5  # upper limits of reasonable field of view in degrees
-
     # Check if the input FOV is within the reasonable range
-    if fov_min <= lower_fov or fov_min > upper_fov:
-        raise ValueError(f"The FOV must be between {lower_fov} and {upper_fov} degrees. Given FOV: {fov_min}")
+    if fov_min <= LOWER_FOV or fov_min > UPPER_FOV:
+        raise ValueError(f"The FOV must be between {LOWER_FOV} and {UPPER_FOV} degrees. Given FOV: {fov_min}")
 
     # Use bisect to find the index where pixel size is just above the minimum diameter
-    index = bisect.bisect(pixel_size, fov_min/1.5) - 1
+    index = bisect.bisect(PIXEL_SIZE, fov_min/2) - 1
+    level = f'K{K_RANGE_INVERSE[index]}'
 
-    level = f'K{K[index]}'
-
-    return level, nside[index], npix[index], pixel_size[index]
+    return level, NSIDE[index], NPIX[index],  PIXEL_SIZE[index]
 
 def calculate_star_indices(tile_path, nsides):
     """

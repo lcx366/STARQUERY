@@ -288,11 +288,12 @@ STARQUERY provides a straightforward method to load local offline star catalog d
 
 ## Change log
 
-- **1.0.6 — Aug 27, 2024**
+- **1.0.7 — Aug 28, 2024**
 
-  - The number of nearest neighbor stars considered when constructing geometric invariants has been increased from the previous value to 10.
+  - The number of nearest neighbor stars considered when constructing geometric invariants has been increased from the previous value to *nine*.
   - The pixel scale used for converting between pixel coordinates and astronomical coordinates via WCS (World Coordinate System) transformations has been refined from *0.01 degrees/pixel* to *0.001 degrees/pixel*.
-  - The number of stars extracted per tile at all levels has been reduced to 5 during the generation of hash files for geometric invariants.
+  - The number of stars extracted per tile at all levels has been reduced to *six* during the generation of hash files for geometric invariants.
+  - Adjusted the calculation for determining healix level based on field of view size
   - A new class, `H5HashesData`, has been introduced.
 
 - **1.0.5 — Aug 08, 2024**
@@ -367,10 +368,6 @@ STARQUERY provides a straightforward method to load local offline star catalog d
 - **0.1.0 — May 10,  2023**
   
   - Release of the ***starcatalogquery*** package.
-
-## Next Release
-
-- Enhance the efficiency of nearest neighbor search to provide support for improving the speed of blind matching of star maps.
 
 # Contributing
 

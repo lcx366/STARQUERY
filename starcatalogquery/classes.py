@@ -93,9 +93,9 @@ class StarCatalog(object):
 
             # Limit the star magnitude range, otherwise remote servers may cause data overflow issues, leading to download failures
             if mag_range is None:
-                mag_range = [3, 17]
+                mag_range = (3, 17)
             else:
-                mag_range[0] = max(mag_range[0], 3)
+                mag_range = (max(mag_range[0], 3), mag_range[1])
 
             if os.path.exists(dir_to):
                 # Check existing star catalog for validity
