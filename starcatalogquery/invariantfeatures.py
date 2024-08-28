@@ -3,7 +3,7 @@ from numpy.linalg import norm
 from scipy.spatial import KDTree
 from itertools import combinations
 
-def unique_quads(points, NUM_NEAREST_NEIGHBORS=10):
+def unique_quads(points, NUM_NEAREST_NEIGHBORS=9):
     """
     Generates unique quads from a set of points by finding the nearest neighbors for each point,
     then calculating invariant features of quads.
@@ -93,7 +93,7 @@ def unique_quads(points, NUM_NEAREST_NEIGHBORS=10):
 
     return np.array(inv_uniq), np.array(quad_vrtx_uniq)
 
-def unique_triangles(points,NUM_NEAREST_NEIGHBORS=10):
+def unique_triangles(points,NUM_NEAREST_NEIGHBORS=9):
     """
     Generates unique triangles from a set of points by finding the nearest neighbors for each point,
     then calculating the ratios of the sides of these triangles.
