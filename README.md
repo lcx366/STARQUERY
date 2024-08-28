@@ -288,7 +288,7 @@ STARQUERY provides a straightforward method to load local offline star catalog d
 
 ## Change log
 
-- **1.0.7 — Aug 28, 2024**
+- **1.1.0 — Aug 28, 2024**
 
   - The number of nearest neighbor stars considered when constructing geometric invariants has been increased from the previous value to *nine*.
   - The pixel scale used for converting between pixel coordinates and astronomical coordinates via WCS (World Coordinate System) transformations has been refined from *0.01 degrees/pixel* to *0.001 degrees/pixel*.
