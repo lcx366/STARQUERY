@@ -617,7 +617,7 @@ class StarCatalogReduced(object):
                 df_simplified['pm_dec'] = df_simplified['pm_dec']
                 df_simplified['epoch'] = t_pm
             else:
-                warnings.warn('Proper motion data for stars in catalog {:s} are not found.'.format(sc_name))
+                warnings.warn(f'Proper motion data for catalog {sc_name} is not found.')
 
             if 'dist' in df_simplified.columns:
                 dist_flag = df_simplified['dist'] > 0
