@@ -11,11 +11,11 @@ from sqlalchemy.engine.reflection import Inspector
 import h5py
 
 from .wcs import xy_catalog
-from .invariantfeatures import unique_triangles,unique_quads
+from .invariantfeatures import vectorized_unique_triangles,vectorized_unique_quads
 
 K_RANGE = range(1, 12)  # Levels for star catalog indexing, from 1 to 11. Higher levels mean finer sky partitions.
 K_RANGE_INVERSE = K_RANGE[::-1]
-N_STARS = 6 # Number of stars to extract for each partition.
+N_STARS = 5 # Number of stars to extract for each partition.
 
 NSIDE = np.power(2,K_RANGE_INVERSE)  # Calculate nside for each K
 NPIX = hp.nside2npix(NSIDE)  # Calculate the total number of pixels for each nside
@@ -405,9 +405,9 @@ def h5_hashes(db_path, tb_name, dir_sc, sc_name, k_min,k_max,mode_invariants,pix
                     xy = np.stack([x, y]).T
 
                     if mode_invariants == 'triangles':
-                        invariants, asterisms = unique_triangles(xy)
+                        invariants, asterisms = vectorized_unique_triangles(xy)
                     elif mode_invariants == 'quads':
-                        invariants, asterisms = unique_quads(xy)
+                        invariants, asterisms = vectorized_unique_quads(xy)
                     else:
                         raise ValueError(f'Unrecognized mode invariants type: {mode_invariants}')
 

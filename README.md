@@ -6,14 +6,14 @@ STARQUERY is an archive of scientific routines for establishing an offline star 
 
 ## Key Features
 
-1. **Offline Star Catalog Database Creation:** Import star catalog data from extensive astronomical sources like [STScI Outerspace](https://outerspace.stsci.edu/display/GC/WebServices+for+Catalog+Access) and [The Astronomy Nexus](https://www.astronexus.com/hyg) to create a comprehensive local offline database.
-2. **Data Simplification**: Condense star catalog data, minimizing storage while retaining essential information.
-3. **Advanced Search and Query**: Utilize sophisticated search tools, including rectangle and spherical cap (cone) searches, for precise star filtering based on location, magnitude, and other criteria.
-4. **Search Area Visualization**: Visualize the scope of the search area and the coverage of corresponding catalog tiles.
+1. **Offline Star Catalog Database Creation:** Import star catalog data from astronomical sources like [STScI Outerspace](https://outerspace.stsci.edu/display/GC/WebServices+for+Catalog+Access) and [The Astronomy Nexus](https://www.astronexus.com/hyg) to create a comprehensive local offline database.
+2. **Data Simplification**: Extract necessary star information from huge star catalog files.
+3. **Star Query**: Utilize the rectangle and spherical cap (cone) query for star filtering.
+4. **Visualization**: Visualize the search area and the corresponding catalog tiles.
 5. **Pixel Coordinate Calculation**: Calculate the pixel coordinates of filtered stars given a specific pixel width.
-6. **Feature Libraries Construction**: Generate geometrically invariant features based on the spatial configuration of stars to aid in star pattern recognition.
+6. **Invariant Features Computation**: Compute geometrically invariant features based on the spatial configuration of stars to aid in star pattern recognition.
 7. **HEALPix-based Sky Area Division**: Divide the celestial sphere into multi-level equal-area sky areas with the HEALPix algorithm.
-8. **Local Offline Star Catalog Database Loading**: Load the local offline star catalog database for efficient data access and manipulation.
+8. **Star Catalog Database Loading**: Load the local offline star catalog database for efficient data access and manipulation.
 9. **Astronomical Corrections**: Apply corrections for proper motion, aberration, parallax, and deflection to star positions.
 
 ## How to Install
@@ -36,64 +36,61 @@ mamba install cartopy
 
 ### Build an Offline Star Catalog Database
 
-Creating a local offline star catalog with STARQUERY is straightforward and efficient. You can obtain star catalog data from renowned astronomical data repositories like the [STScI Outerspace](https://outerspace.stsci.edu/display/GC/WebServices+for+Catalog+Access) and [The Astronomy Nexus](https://www.astronexus.com/hyg). STARQUERY supports a wide range of star catalogs including 'HYG v3.7', 'AT-HYG v2.4', 'GAIA DR3', 'GSC 30', 'UCAC5', 'NSNOB', '2MASS', and more.
+Creating a local offline star catalog database with STARQUERY is straightforward and efficient. The star catalog data can be obtained from the renowned astronomical data repositories like [STScI Outerspace](https://outerspace.stsci.edu/display/GC/WebServices+for+Catalog+Access) and [The Astronomy Nexus](https://www.astronexus.com/hyg). STARQUERY supports a wide range of star catalogs, including 'HYG v3.7', 'AT-HYG v2.4', 'GAIA DR3', 'GSC 30', 'UCAC5', 'USNOB1.0', '2MASS', and more.
 
-To start building your database, use the `StarCatalog` class in the STARQUERY package. For example, to download the AT-HYG v2.4 star catalog, you can use the following Python script:
+To start building your database, for example, just download the AT-HYG v2.4 star catalog.
 
 ```python
 >>> from starcatalogquery import StarCatalog
->>> # Get the star catalog AT-HYG v2.4
->>> sc_raw = StarCatalog.get('at-hyg24')
+>>> sc_raw = StarCatalog.get('at-hyg24') # Get the raw star catalog AT-HYG v2.4
 >>> print(sc_raw) # Display basic information about the downloaded catalog
 ```
 
-### Reduce the Raw Star Catalog
+### Simplify the Raw Star Catalog
 
-The original star catalog, while comprehensive, often contains extensive information that results in substantial storage requirements and can impede the speed of star queries. To address this, STARQUERY provides a feature to streamline the catalog by extracting only the essential star information. This is achieved using the .reduce() method, which constructs a more compact version of the star catalog.
+The raw star catalog usually contains extensive information about stars that result in substantial storage requirements, thus impeding the speed of star queries. To address this, by extracting only the essential star information, a more compact version of the star catalog is created.
 
 ```python
->>> # Reduce the raw star catalog to its essential components
 >>> sc_reduced = sc_raw.reduce()
->>> print(sc_reduced) # Display basic information about the reduced catalog
+>>> print(sc_reduced)
 ```
 
-The reduced star catalog will include only the celestial position, proper motion, apparent magnitude, parallax, and epoch of stars, significantly reducing the storage space and improving query performance.
+The reduced star catalog will only contains: celestial position, proper motion, apparent magnitude, parallax, and epoch of stars.
 
-### Simplify the Reduced Star Catalogs
+### Filter the Reduced Star Catalogs
 
-To further enhance its query efficiency, STARQUERY allows users to filter the reduced star catalog based on the limit magnitude of the detector. In addition, it facilitates proper motion corrections to produce a star catalog close to observation time. 
+For further enhancing the query efficiency, the reduced star catalog is filtered based on the limit magnitude of the detector. Simultaneously, the proper motion corrections is applied to make the star catalog close to the observation time. 
 
 ```python
->>> # Set the magnitude threshold and observation epoch for proper motion correction
->>> mag_threshold,t_pm = 12.0,2019.5 
->>> # Simplify the reduced star catalog
+>>> mag_threshold = 13.0 # Set the magnitude threshold
+>>> t_pm = 2019.5 # Set the observation time for proper motion correction
 >>> sc_simplified = sc_reduced.simplify(mag_threshold,t_pm)
->>> print(sc_simplified) # Display basic information about the simplified catalog 
+>>> print(sc_simplified) 
 ```
 
 ### Query Stars over a Specific Sky Area
 
-STARQUERY allows users to perform a conical or rectangular search on the **raw**, **reduced**, or **simplified** star catalog to find stars within a specific area of the sky. Before conducting a catalog query, it is necessary to establish an index database. Once established, there is no need to repeat the process. **Raw** catalogs and **reduced**  catalogs share the same index database, while **simplified** catalogs require a separate index database to be established. If you do not query the **raw or reduced** catalog, there is no need to establish their index database. Due to the large size of the original catalog files, it is not allowed to directly establish an index database for the original catalog. Instead, a database is established for **reduced** catalogs for sharing, which greatly saves time in establishing an index database.
+STARQUERY impliments a conical and rectangular query on the **raw**, **reduced**, or **simplified** star catalog. Before conducting a catalog query, an index database needs to be prepared. The **raw** catalog is too large to directly build an index database, and it shares the same index database with the **reduced**  catalog. If you do not query the **raw or reduced** catalog, there is no need to build their index database.
 
 #### Build a catalog index database for the first time
 
 ```python
 >>> from starcatalogquery import CatalogDB
->>> sc_reduced.build_indices() # Establish catalog index data table for raw/reduced star catalog
 >>> sc_database = CatalogDB(sc_reduced._db_path) # Linking databases
+>>> sc_reduced.build_indices() # Establish catalog index data table
 >>> sc_database.add_table(sc_reduced._indices_path) # Add the data table to the database
 >>> print(sc_database)
 ```
 
-Add the index data table for simplified star catalog to the catalog index database, and of course, you can also add index data table from other star catalogs to the database.
+Add the index data table for the simplified star catalog to the database.
 
 ```python
->>> sc_simplified.build_indices() # Establish star index data table for simplified star catalog
+>>> sc_simplified.build_indices() # Establish catalog index data table for simplified star catalog
 >>> sc_database.add_table(sc_simplified._indices_path) # Add the data table to the database
 >>> print(sc_database)
 ```
 
-Delete some star index data tables from the the database.
+Delete the star index data tables from the the database.
 
 ```python
 >>> sc_database.del_table(sc_reduced._tb_name)
@@ -102,28 +99,26 @@ Delete some star index data tables from the the database.
 
 #### Perform a star catalog query
 
-The preliminary work has been completed, and now we can proceed with the star catalog query operation. Based on the size of the search area, the star catalog query adaptively select the hierarchy level and corresponding tiles with the HEALPix. The combination of these tiles can fully cover the search area.
+Based on the size of the search area, the star catalog query adaptively select the hierarchy level and corresponding tiles with the HEALPix.
 
 ##### Conical star query on raw/reduced catalog
 
-Extract all stars located in the search area through cutoff magnitude and boundary conditions.
+Extract all stars located in the search area through cutoff magnitude and search boundaries.
 
 ```python
->>> # Set the center pointing in form of [Ra, Dec] in degrees and search radius in degrees
->>> center,radius = [20,30],15 
->>> # Set the cutoff magnitude and the observation epoch
->>> mag_threshold,t_pm = 12.0,2019.5
->>> # Optionally, set the maximum number of brightest stars to output
->>> max_num = 100
->>> # Perform a cone search on the raw star catalog
->>> sc_raw_stars = sc_raw.search_cone(center,radius,mag_threshold,t_pm,max_num=max_num)
->>> print(sc_raw_stars )
+>>> center = [20,30] # Set the center pointing in form of [Ra, Dec] in degrees
+>>> radius = 5 # Set the search radius in degrees
+>>> mag_threshold = 13.0 # Set the cutoff magnitude
+>>> t_pm = 2019.5 # Set the observation time
+>>> max_num = 100 # Optionally, set the maximum number of brightest stars to output
+>>> sc_raw_stars = sc_raw.search_cone(center,radius,mag_threshold,t_pm,max_num=max_num) # Cone search on the raw star catalog
+>>> print(sc_raw_stars)
 ```
 
-By filtering out the brightest stars in each tile, extract the stars located in the search area.
+Alternatively, by filtering out the brightest stars in each tile, extract the stars located in the search area.
 
 ```python
->>> max_num_per_tile = 10
+>>> max_num_per_tile = 5
 >>> sc_raw_stars = sc_raw.search_cone(center,radius,mag_threshold,t_pm,max_num_per_tile=max_num_per_tile)
 ```
 
@@ -132,41 +127,38 @@ By filtering out the brightest stars in each tile, extract the stars located in 
 Star query on simplified catalog no longer requires magnitude truncation and prior proper motion correction. 
 
 ```python
->>> # Perform a cone search on the simplified star catalog
 >>> sc_simplified_stars = sc_simplified.search_cone(center,radius)
 >>> print(sc_simplified_stars)
 ```
 
-However, astronomical corrections can be applied, including 
+During the star query, astronomical corrections can be applied:
 
-    - 'proper-motion': Corrects for the motion of stars across the sky due to their velocities.
-    - 'aberration': Corrects for the apparent shift in star positions due to the motion of the observer.
-    - 'parallax': Corrects for the apparent shift in star positions due to the change in observer's viewpoint as the Earth orbits the Sun.
-    - 'deflection': Corrects for the bending of light from stars due to the gravitational field of the Sun, based on general relativity.
+    - 'proper-motion': Corrections for the motion of stars across the sky due to their velocities.
+    - 'aberration': Corrections for the apparent shift in star positions due to the motion of the observer.
+    - 'parallax': Corrections for the apparent shift in star positions due to the change in observer's viewpoint as the Earth orbits the Sun.
+    - 'deflection': Corrections for the bending of light from stars due to the gravitational field of the Sun, based on general relativity.
 
 ```python
 >>> astrometry_corrections = {'t':'2019-02-26T20:11:14.347','proper-motion':None,'aberration':(0.55952273, -1.17780654,  7.50324956),'parallax':None}
 >>> sc_simplified_stars = sc_simplified.search_cone(center,radius,astrometry_corrections=astrometry_corrections)
 ```
 
-In *astrometry_corrections* dict, 
-    - 't' -> [str] Observation time in UTC, which specifies the time at which corrections are to be applied.
-    - 'proper-motion' -> [None] If present, apply proper motion correction.
-    - 'aberration' -> [tuple] Observer's velocity relative to Earth's center, (vx, vy, vz) in km/s.
-    - 'parallax' -> [None] If present, apply parallax correction.
-    - 'deflection' -> [None] If present, apply light deflection correction.
+Details on the *astrometry_corrections* dict:
+    - 't': Observation time in UTC, which specifies the time at which corrections are to be applied.
+    - 'proper-motion': If present, apply proper motion correction.
+    - 'aberration': Observer's velocity relative to Earth's center, (vx, vy, vz) in km/s.
+    - 'parallax': If present, apply parallax correction.
+    - 'deflection': If present, apply light deflection correction.
 
 ##### Rectangular star query on raw/reduced/Simplified catalog
 
-STARQUERY also provides the capability to perform a rectangle search in the raw, reduced, and simplified star catalogs. Its usage is similar to that of cone search.
+The usage is similar to that of the cone search.
 
 ```python
->>> # Set a rectangular search area in form of [ra_min, dec_min, ra_max, dec_max] in degrees
->>> radec_box = [5,15,35,45]
->>> # Set the cutoff magnitude and the observation epoch
->>> mag_threshold,t_pm = 12.0,2019.5
->>> # Optionally, set the maximum number of brightest stars to output
->>> max_num = 100
+>>> radec_box = [5,15,15,25] # Set the rectangular search area in form of [ra_min, dec_min, ra_max, dec_max] in degrees
+>>> mag_threshold = 13.0 # Set the cutoff magnitude
+>>> t_pm = 2019.5 # Set the observation time
+>>> max_num = 100 # Optionally, set the maximum number of brightest stars to output
 >>> # Perform a rectangle search on the raw star catalog
 >>> sc_raw_stars = sc_raw.search_box(radec_box,mag_threshold,t_pm,max_num=max_num)
 >>> # Perform a rectangle search on the reduced star catalog
@@ -180,8 +172,7 @@ STARQUERY also provides the capability to perform a rectangle search in the raw,
 Calculate the pixel coordinates of filtered stars, using the *TANGENT* projection in World Coordinate System (WCS) transformations. 
 
 ```python
->>> # Specify the pixel width in degrees
->>> pixel_width = 0.01
+>>> pixel_width = 0.001 # Set the pixel width in degrees
 >>> # Calculate the pixel coordinates using the TAN projection
 >>> sc_simplified_stars.pixel_xy(pixel_width)
 >>> # Retrieve the calculated pixel coordinates
@@ -191,22 +182,14 @@ Calculate the pixel coordinates of filtered stars, using the *TANGENT* projectio
 
 ### Calculate the Geometric Invariants and the Asterism Indices of the Filtered Stars
 
-The calculation of triangle invariants draws inspiration from the Astroalign software package developed by Beroiz, M. I. (https://astroalign.quatrope.org/en/latest/). The calculation of quads invariants refers to Astrometry.net(https://astrometry.net).
+- Method for calculating the triangle invariants draws inspiration from the Astroalign software package developed by Beroiz, M. I. (https://astroalign.quatrope.org/en/latest/). 
+- Method for calculating the quads invariants refers to Astrometry.net(https://astrometry.net).
 
 Steps for the calculation of triangle invariants:
 
 1. **Derive Geometric Invariants:** For each possible triangle formed by groups of three stars, calculates unique geometric invariants (ratios L2/L1 and L1/L0), where L2, L1, and L0 are the sides of each triangle sorted in descending order.
 2. **Construct a 2D-Tree Structure:** Utilizing these invariants, a 2D-Tree structure is constructed to facilitate efficient spatial queries.
 3. **Associate Invariants with Star Indices:** Each invariant set is linked to the indices of the stars forming the corresponding triangle.
-
-```python
->>> sc_simplified_stars.invariantfeatures(mode_invariants='triangles')
->>> # Retrieve the generated invariants, asterisms, and 2D-Tree structure
->>> invariants = sc_simplified_stars.invariants
->>> asterisms = sc_simplified_stars.asterisms
->>> kdtree = sc_simplified_stars.kdtree
->>> print(invariants,asterisms,kdtree)
-```
 
 Steps for the calculation of quad invariants:
 
@@ -216,8 +199,9 @@ Steps for the calculation of quad invariants:
 4. **Associate Invariants with Star Indices:** Each invariant set is linked to the indices of the stars forming the corresponding quad.
 
 ```python
->>> sc_simplified_stars.invariantfeatures(mode_invariants='quads') 
->>> # Retrieve the generated invariants, asterisms, and 4D-Tree structure
+>>> mode_invariants = 'triangles' # quads
+>>> sc_simplified_stars.invariantfeatures(mode_invariants)
+>>> # Retrieve the generated invariants, asterisms, and 2D-Tree structure
 >>> invariants = sc_simplified_stars.invariants
 >>> asterisms = sc_simplified_stars.asterisms
 >>> kdtree = sc_simplified_stars.kdtree
@@ -226,7 +210,7 @@ Steps for the calculation of quad invariants:
 
 ### Visualization
 
-STARQUERY provides a visualization feature to display the scope of the search area and the coverage of the corresponding catalog tiles. 
+Display the scope of the search area and the coverage of the corresponding catalog tiles. 
 
 ```python
 >>> sc_simplified_stars.tiles_draw() # Visualize the cone search area
@@ -246,7 +230,7 @@ STARQUERY provides a visualization feature to display the scope of the search ar
 
 ### Divide the Sky into multi-level Equal-Area Sky Regions
 
-To facilitate blind matching of star maps, STARQUERY divides the celestial sphere into multi-level equal-area sky regions using the HEALPix algorithm in advance. The default strategy for dividing the celestial sphere ensures that each tile's size is greater than one-quarter of the FOV and less than or equal to half of the FOV. For each level of tiles in the star catalog (from K1 to K11), extract the brightest stars (such as top 5) and integrate them into the K1 level. Then, calculate the geometric invariants and store them into a h5-formatted hash file.
+To facilitate blind matching of star maps, STARQUERY divides the celestial sphere into multi-level equal-area sky regions using the HEALPix algorithm in advance. For each level(from K1 to K11), the brightest stars (such as top 5) are extracted and integrated into the K1 level. The geometric invariants are then calculated and stored into a h5-formatted hash file.
 
 <p align="middle">
   <img src="readme_figs/healpix_list.png" width="400" />
@@ -258,23 +242,21 @@ To facilitate blind matching of star maps, STARQUERY divides the celestial spher
 
 ```python
 >>> k_min,k_max = 1,6
->>> sc_simplified.h5_hashes(k_min,k_max,mode_invariants='triangles') # mode_invariants='quads'
+>>> sc_simplified.h5_hashes(k_min,k_max,mode_invariants)
 >>> print(sc_simplified.hashed_h5)
 ```
 
-A h5-formatted star catalog hashed file is generated, recording the center pointing, pixel coordinates of the stars, geometric invariants, and asterism indices for multi-level sky region.
+The h5-formatted hash data records the center pointing, pixel coordinates of the stars, geometric invariants, and asterism indices for multi-level sky region.
 
-### Read the h5-formatted Star Catalog Hashed File
+### Read the h5-formatted Hash File
 
 ```python
->>> infile_h5 = 'starcatalogs/indices/at-hyg24_mag12.0_epoch2019.5_triangles_K1_K6.h5'
->>> simplified_catalog.read_h5_hashes(infile_h5)
->>> print(sc_simplified.hashed_data)
+>>> infile_h5 = 'starcatalogs/indices/at-hyg24_mag13.0_epoch2019.5_triangles_K1_K6.h5'
+>>> sc_hashed = sc_simplified.read_h5_hashes(infile_h5)
+>>> print(sc_hashed.hashed_data)
 ```
 
 ### Load the Local Offline Star Catalog Database
-
-STARQUERY provides a straightforward method to load local offline star catalog databases, ensuring quick access to the star catalog data.
 
 ```python
 >>> from starcatalogquery import StarCatalog
@@ -282,18 +264,19 @@ STARQUERY provides a straightforward method to load local offline star catalog d
 >>> sc_raw = StarCatalog.load(dir_from_raw)
 >>> dir_from_reduced = 'starcatalogs/reduced/at-hyg24/' # Path of the reduced starcatalog
 >>> sc_reduced = StarCatalog.load(dir_from_reduced)
->>> dir_from_simplified = 'starcatalogs/simplified/at-hyg24/mag12.0/epoch2019.5/' # Path of the simplified starcatalog
+>>> dir_from_simplified = 'starcatalogs/simplified/at-hyg24/mag13.0/epoch2019.5/' # Path of the simplified starcatalog
 >>> sc_simplified = StarCatalog.load(dir_from_simplified)
 ```
 
 ## Change log
 
-- **1.1.0 — Aug 28, 2024**
+- **1.1.0 — Sep 03, 2024**
 
-  - The number of nearest neighbor stars considered when constructing geometric invariants has been increased from the previous value to *nine*.
-  - The pixel scale used for converting between pixel coordinates and astronomical coordinates via WCS (World Coordinate System) transformations has been refined from *0.01 degrees/pixel* to *0.001 degrees/pixel*.
-  - The number of stars extracted per tile at all levels has been reduced to *six* during the generation of hash files for geometric invariants.
-  - Adjusted the calculation for determining healix level based on field of view size
+  - The number of nearest neighbor stars for constructing geometric invariants has been increased to *nine*.
+  - Added functions `vectorized_unique_quads` and `vectorized_unique_triangles` for vectorizing the calculation of geometric invariants.
+  - The pixel scale used for convertion between pixel coordinates and astronomical coordinates via WCS (World Coordinate System) transformations has been refined from *0.01 degrees/pixel* to *0.001 degrees/pixel*.
+  - The number of stars extracted per tile at all levels has been reduced to *five* during the generation of hash files for geometric invariants.
+  - Adjusted the calculation for determining healix level based on field of view size.
   - A new class, `H5HashesData`, has been introduced.
 
 - **1.0.5 — Aug 08, 2024**

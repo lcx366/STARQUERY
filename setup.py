@@ -2,7 +2,7 @@ from setuptools import setup,find_packages
 
 setup(
     name='starcatalogquery',
-    version='1.0.7',
+    version='1.1.0',
     description='A package for building an offline star catalog query database',
     author='Chunxiao Li',
     author_email='lcx366@126.com',

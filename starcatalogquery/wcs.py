@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.spatial.transform import Rotation
 from astropy.wcs import WCS
-from astropy.coordinates import SkyCoord
 
 def Rot(seq, angles, degrees=True):
     """
@@ -107,16 +106,13 @@ def xy_catalog(fp_radec,radec,pixel_width,theta=0):
     # Define the WCS transformation based on pixel width and fiducial point
     wcs = wcs_trans(pixel_width,fp_radec)
 
-    # Convert the list of celestial coordinates into an Astropy SkyCoord object
-    radec = SkyCoord(radec, unit='deg')
+    # Directly convert world coordinates (RA/DEC) to pixel coordinates
+    x, y = wcs.world_to_pixel_values(radec[:, 0], radec[:, 1])
 
     # Check if rotation is needed
-    if theta == 0:
-        # Directly convert world coordinates (RA/DEC) to pixel coordinates
-        x,y = np.array(wcs.world_to_pixel(radec))
-    else:    
+    if theta != 0:
         # Apply rotation on pixel coordinates
         # 'Rot' function is called to get the rotation matrix
-        x,y = Rot('Z',theta,degrees=False)[:-1,:-1] @ np.array(wcs.world_to_pixel(radec))
+        x,y = Rot('Z',theta,degrees=False)[:-1,:-1] @ np.stack([x,y])
 
     return x,y,wcs   
