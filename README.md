@@ -270,7 +270,7 @@ The h5-formatted hash data records the center pointing, pixel coordinates of the
 
 ## Change log
 
-- **1.1.0 — Sep 03, 2024**
+- **1.1.1 — Sep 04, 2024**
 
   - The number of nearest neighbor stars for constructing geometric invariants has been increased to *nine*.
   - Added functions `vectorized_unique_quads` and `vectorized_unique_triangles` for vectorizing the calculation of geometric invariants.
