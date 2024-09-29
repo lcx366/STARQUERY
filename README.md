@@ -270,30 +270,34 @@ The h5-formatted hash data records the center pointing, pixel coordinates of the
 
 ## Change log
 
-- **1.1.1 — Sep 04, 2024**
+- **1.1.2 — Sep 29, 2024**
+  
+  - Normalize RA to [0, 360) when converting cartesian coordinates to spherical coordinates.
 
+- **1.1.1 — Sep 04, 2024**
+  
   - The number of nearest neighbor stars for constructing geometric invariants has been increased to *nine*.
   - Added functions `vectorized_unique_quads` and `vectorized_unique_triangles` for vectorizing the calculation of geometric invariants.
-  - The pixel scale used for convertion between pixel coordinates and astronomical coordinates via WCS (World Coordinate System) transformations has been refined from *0.01 degrees/pixel* to *0.001 degrees/pixel*.
+  - The pixel scale used for conversion between pixel coordinates and astronomical coordinates via WCS (World Coordinate System) transformations has been refined from *0.01 degrees/pixel* to *0.001 degrees/pixel*.
   - The number of stars extracted per tile at all levels has been reduced to *five* during the generation of hash files for geometric invariants.
-  - Adjusted the calculation for determining healix level based on field of view size.
+  - Adjusted the calculation for determining healpix level based on field of view size.
   - A new class, `H5HashesData`, has been introduced.
 
 - **1.0.5 — Aug 08, 2024**
-
+  
   - Fixed the memory overflow issue caused by processing giant star catalog tile files.
 
 - **1.0.3 — Jul 27, 2024**
-
+  
   - Raise the healpix level of the star catalog tiles from K4 to K5 to avoid the trouble of downloading large files from remote servers that are prone to failure.
 
 - **1.0.2 — Jul 17, 2024**
-
+  
   - In checking the validity of star catalog files, use the `wc -l` command with the subprocess module to quickly count the number of lines in the CSV file, which is more efficient than a pure Python implementation.
   - Fixed a bug in the validity check of star catalog files
 
 - **1.0.1 — Jul 16, 2024**
-
+  
   - Added parameters that limit the magnitude range to avoid the problem of remote server data overflow and download failure.
 
 - **1.0.0 — Jul 04, 2024**

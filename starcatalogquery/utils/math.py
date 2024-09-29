@@ -1,6 +1,8 @@
 import numpy as np
 from numpy.linalg import norm
 
+TWOPI = 2 * np.pi
+
 def unit_vector(vector):
     """
     Calculate the unit vector of a given vector or an array of vectors.
@@ -100,7 +102,7 @@ def cartesian_to_spherical(x, y, z, degrees=True):
         ra_dec_r -> [array-like] Spherical coordinates as an array of shape (3,) or (N, 3).
     """
     r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-    ra = np.arctan2(y, x)
+    ra = np.arctan2(y, x) % TWOPI # normalize RA to [0, 2pi)
     dec = np.arcsin(z / r)
 
     if degrees:
