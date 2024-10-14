@@ -270,6 +270,10 @@ The h5-formatted hash data records the center pointing, pixel coordinates of the
 
 ## Change log
 
+- **1.1.3 — Oct 14, 2024**
+  
+  - Fixed an error in parallel processing when applying astronomical corrections (primarily caused by JPL ephemeris memory mapping).
+
 - **1.1.2 — Sep 29, 2024**
   
   - Normalize RA to [0, 360) when converting cartesian coordinates to spherical coordinates.

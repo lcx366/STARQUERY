@@ -32,23 +32,33 @@ def iers_load():
 
 def sspe_load(jpleph):
     """
-    Loads the Solar System Planetary Ephemeris (SPPE) file from NAIF.
+    Loads the Solar System Planetary Ephemeris (SSPE) file from NAIF (NASA's Navigation and Ancillary Information Facility)
+    using the Skyfield library. This function is responsible for downloading and loading a specific JPL ephemeris into
+    the global variable `eph`, which is later used to compute positions and motions of celestial objects, particularly
+    the Earth and the Sun.
 
     Usage:
         >>> sspe_load('DE440S')
+
     Inputs:
-        jpleph -> [str] Name of the JPL ephemeris, e.g. 'DE440S'.
+        jpleph -> [str]: The name of the desired JPL ephemeris. Common values include:
+                          'DE430' - JPL Developmental Ephemeris 430
+                          'DE440' - JPL Developmental Ephemeris 440
+                          'DE440S' - A simplified version of DE440
+
     Outputs:
-        earth, sun -> Global variables to store the ephemerides of the Earth and Sun
+        This function does not explicitly return any value. Instead, it sets the global variable `eph`,
+        which contains the ephemeris data for computing celestial positions.
     """
-    global earth, sun  # Global variables to store the ephemerides of the Earth and Sun
+    global eph  # Global variable to store the ephemeris data
 
-    jpleph = jpleph.lower() # Convert to lowercase for consistency
+    jpleph = jpleph.lower()  # Convert input to lowercase for case-insensitive matching
 
+    # Check if the input ephemeris is one of the supported types
     if jpleph in ['de430', 'de440', 'de440s']:
-        ephem_file = download_sspe(jpleph)  # Download the SPPE file
-        eph = load(ephem_file)  # Load the SPPE file into Skyfield
-        earth,sun = eph['earth'],eph['sun']
+        ephem_file = download_sspe(jpleph)  # Download the ephemeris file
+        eph = load(ephem_file)  # Load the downloaded ephemeris file into the global variable `eph`
     else:
+        # Raise an exception if the ephemeris name is not supported
         raise Exception(
             f"The specified ephemeris '{jpleph}' is not supported. Available ephemerides are:\n- DE430\n- DE440\n- DE440S")
