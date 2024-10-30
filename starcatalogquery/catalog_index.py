@@ -395,7 +395,7 @@ def h5_hashes(db_path, tb_name, dir_sc, sc_name, k_min,k_max,mode_invariants,pix
         with h5py.File(outh5, 'w') as f:
             for i in range(k_min, k_max + 1):  # Iterate through the levels in the range
                 lvl = f"K{i}"
-                print(f'Generating hdf5 data in level {Fore.BLUE}{lvl}{Fore.RESET} of {"K1 -> K11"}', end='\r')
+                print(f'Generating hdf5 data in level {Fore.BLUE}{lvl}{Fore.RESET} of K{k_min} -> K{k_max}', end='\r')
 
                 data_dict = fetch_partitions(db_path, tb_name, lvl, N_STARS, dir_sc, sc_name)
 

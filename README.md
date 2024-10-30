@@ -270,6 +270,10 @@ The h5-formatted hash data records the center pointing, pixel coordinates of the
 
 ## Change log
 
+- **1.1.4 — Oct 30, 2024**
+  
+  - Set the maximum display records for DataFrames to 200 by default.
+
 - **1.1.3 — Oct 14, 2024**
   
   - Fixed an error in parallel processing when applying astronomical corrections (primarily caused by JPL ephemeris memory mapping).
