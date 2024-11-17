@@ -74,7 +74,7 @@ def hyg_download(sc_name, dir_to):
     }
 
     url, raw_file = catalog_info[sc_name]
-    raw_dir_to = os.path.expanduser('~/src/starcatalogs/data/')
+    raw_dir_to = os.path.expanduser('~/src/sc-data/hyg/')
     raw_file_path = os.path.join(raw_dir_to, raw_file)
     raw_file_gz = os.path.join(raw_dir_to, os.path.basename(url))
 

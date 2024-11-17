@@ -51,7 +51,7 @@ def apply_astrometry_corrections(df, astrometry_corrections, ra_rad, dec_rad):
     Outputs:
         df -> [DataFrame] Corrected star catalog data.
     """
-    # Load time system and ephemerides for Earth and Sun
+    # Load time system and JPL ephemeris for Earth and Sun
     ts, eph = data_prepare.ts, data_prepare.eph
     earth, sun = eph['earth'],eph['sun']
     dist = df['dist'].values * Const.kpc_in_au  # Convert distance from kpc to AU

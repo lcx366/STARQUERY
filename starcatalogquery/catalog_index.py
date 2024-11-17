@@ -150,7 +150,22 @@ def generate_catalog_db(catalog_indices_db,catalog_indices_csv):
     # Define the table name based on the CSV filename
     tb_name = catalog_indices_csv.split('/')[-1].split('.csv')[0]
 
-    df = pd.read_csv(catalog_indices_csv)
+    dtype_map = {
+        'K1': 'uint8',     # TINYINT
+        'K2': 'uint8',     # TINYINT
+        'K3': 'int16',     # SMALLINT
+        'K4': 'int16',     # SMALLINT
+        'K5': 'int16',     # SMALLINT
+        'K6': 'int16',     # SMALLINT
+        'K7': 'int32',     # INTEGER
+        'K8': 'int32',     # INTEGER
+        'K9': 'int32',     # INTEGER
+        'K10': 'int32',    # INTEGER
+        'K11': 'int32',    # INTEGER
+        'K5_SUB': 'int32'  # INTEGER
+    }
+
+    df = pd.read_csv(catalog_indices_csv,dtype=dtype_map)
     df.to_sql(tb_name, engine, if_exists='replace', index=False)
     print(f"Table '{tb_name}' has been added to the database.")
 

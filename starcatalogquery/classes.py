@@ -75,7 +75,7 @@ class StarCatalog(object):
         if sc_name not in valid_catalogs:
             raise ValueError(f'Star catalog {sc_name} is not supported. Valid catalogs are: {valid_catalogs}')
 
-        dir_starcatalogs = f'starcatalogs/raw/{sc_name}/'
+        dir_starcatalogs = os.path.join('starcatalogs', 'raw', sc_name)
         if dir_to is None:
             dir_to = dir_starcatalogs # Set default download directory if not specified
         else:
@@ -87,7 +87,7 @@ class StarCatalog(object):
             dir_size, file_num, validity = hyg_download(sc_name,dir_to)
         else:
             # For GAIA DER3, GSC 30, UCAC5, USNOB, 2MASS star catalogs
-            dir_url = dir_to.split('starcatalogs')[0] + 'starcatalogs/url/'
+            dir_url = os.path.join(dir_to.split('starcatalogs')[0], 'starcatalogs', 'url')
             url_file = os.path.join(dir_url, f'{sc_name}.txt')
             os.makedirs(dir_url, exist_ok=True)
 
@@ -160,7 +160,7 @@ class StarCatalog(object):
             raise Exception('Directory of the star catalog to load does not exist.')
 
         # Parse the directory to get components of the path
-        parse_dir = dir_from.strip('/').split('/')
+        parse_dir = os.path.normpath(dir_from).split(os.sep)
 
         if 'epoch' in parse_dir[-1]:
             _mode, sc_name, mag_threshold, epoch = parse_dir[-4:]
@@ -308,6 +308,7 @@ class StarCatalogRaw(object):
                 df.rename(columns=rename_dict, inplace=True)
                 df['epoch'] = '2000.0'
                 df_reduced = df.apply(pd.to_numeric,errors='coerce')
+                df_reduced = df_reduced.reindex(columns=original_columns)
                 df_reduced['ra'] = df_reduced['ra']*15 # Convert hourangle to deg
                 df_reduced['dist'] = df_reduced['dist'] / 1e3  # Convert pc to kpc
                 df_reduced = format_columns(df_reduced)
@@ -323,6 +324,7 @@ class StarCatalogRaw(object):
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip',usecols=original_columns)
                 # units: ra->deg, dec->deg, pmra->mas/a, pmdec->mas/a, epoch->2016
                 df_reduced = df.apply(pd.to_numeric,errors='coerce')
+                df_reduced = df_reduced.reindex(columns=original_columns)
                 # Calculate distance from parallax
                 df_reduced['dist'] = parallax2dist(df_reduced['parallax'])
                 parallax_index = df_reduced.columns.get_loc('parallax')
@@ -344,6 +346,7 @@ class StarCatalogRaw(object):
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip',usecols=original_columns)
                 # units: ra->deg, dec->deg, rapm->mas/a, decpm->mas/a, epoch->2012
                 df_reduced = df.apply(pd.to_numeric,errors='coerce')
+                df_reduced = df_reduced.reindex(columns=original_columns)
                 # Calculate distance from parallax
                 df_reduced['dist'] = parallax2dist(df_reduced['parallax'])
                 # Get the position of the 'parallax' column
@@ -366,6 +369,7 @@ class StarCatalogRaw(object):
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip',usecols=original_columns)
                 # units: ra->deg, dec->deg, pmur->mas/a, pmud->mas/a, epu->1998.754
                 df_reduced = df.apply(pd.to_numeric,errors='coerce')
+                df_reduced = df_reduced.reindex(columns=original_columns)
                 # Rename columns
                 df_reduced.rename(columns=rename_dict, inplace=True)
                 df_reduced = format_columns(df_reduced)
@@ -380,6 +384,7 @@ class StarCatalogRaw(object):
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip',usecols=original_columns)
                 # units: ra->deg, dec->deg, pmRA->mas/a, pmDEC->mas/a, Epoch->1950,mag->unknown
                 df_reduced = df.apply(pd.to_numeric,errors='coerce')
+                df_reduced = df_reduced.reindex(columns=original_columns)
                 # Rename columns
                 df_reduced.rename(columns=rename_dict, inplace=True)
                 df_reduced = format_columns(df_reduced)
@@ -393,6 +398,7 @@ class StarCatalogRaw(object):
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip',usecols=original_columns)
                 # units: ra->deg, dec->deg, jdate->2451063.6417
                 df_reduced = df.apply(pd.to_numeric,errors='coerce')
+                df_reduced = df_reduced.reindex(columns=original_columns)
                 # Convert Julian date to epoch year
                 df_reduced['epoch'] = Time(df_reduced['jdate'], format='jd').jyear
                 df_reduced.pop('jdate')
@@ -587,7 +593,7 @@ class StarCatalogReduced(object):
 
         # Setting up the directory for the reduced catalog
         tiles_dir = self.tiles_dir
-        dir_simplified = tiles_dir.replace('reduced','simplified')+'mag{:.1f}/epoch{:.1f}/'.format(mag_threshold,t_pm)
+        dir_simplified = os.path.join(tiles_dir.replace('reduced', 'simplified'),f'mag{mag_threshold:.1f}',f'epoch{t_pm:.1f}')
         os.makedirs(dir_simplified, exist_ok=True)
 
         # Construct file pattern
@@ -624,7 +630,8 @@ class StarCatalogReduced(object):
                 df_simplified = df_simplified[dist_flag]
 
             df_simplified = format_columns(df_simplified)
-            df_simplified.to_csv(dir_simplified + tile_file.split('/')[-1],index=False)
+            output_path = os.path.join(dir_simplified, os.path.basename(tile_file))
+            df_simplified.to_csv(output_path, index=False)
 
         print('\nFinished')
 

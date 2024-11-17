@@ -123,8 +123,7 @@ def search_box_raw(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_indices_d
     ra_min, dec_min, ra_max, dec_max = radec_box
     dec_c,ra_c = np.mean([dec_max,dec_min]),np.mean([ra_max,ra_min])
     ra_range,dec_range = ra_max-ra_min,dec_max-dec_min
-    if fov_min is None:
-        fov_min = min(ra_range*np.cos(np.radians(dec_c)),dec_range)
+    if fov_min is None: fov_min = min(ra_range, dec_range)
 
     vertices = np.array([
         [ra_min, dec_min],  # Bottom left
@@ -133,7 +132,25 @@ def search_box_raw(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_indices_d
         [ra_min, dec_max]   # Top left
     ])
 
+    # Convert the vertices from spherical coordinates (RA, Dec) to 3D Cartesian coordinates (x, y, z)
+    # The input 'vertices' is assumed to have shape (N, 2), where:
+    #   - vertices[:, 0] represents the longitude (Right Ascension, RA)
+    #   - vertices[:, 1] represents the latitude (Declination, Dec)
+    # The 'lonlat=True' flag indicates that the input coordinates are in degrees (longitude, latitude)
     vertices_uec = hp.ang2vec(vertices[:,0],vertices[:,1],lonlat=True)
+
+    # Round the 3D Cartesian coordinates to a specified precision (5 decimal places)
+    # This rounding step helps in reducing minor numerical differences between very close coordinates,
+    # especially useful when coordinates are near the poles where small differences in longitude (RA)
+    # can cause almost identical Cartesian coordinates.
+    vertices_uec_rounded = np.round(vertices_uec, decimals=5)
+
+    # Use 'np.unique' to find unique rows in the rounded array, while preserving the original order.
+    # This step helps eliminate nearly identical rows caused by numerical precision errors,
+    # which can prevent issues like degenerate polygons in spherical queries.
+    _, idx = np.unique(vertices_uec_rounded, axis=0, return_index=True)
+    # Sorting the indices ensures the original order of the vertices is maintained.
+    vertices_uec = vertices_uec[np.sort(idx)]
 
     # Find the HEALPix parameters for a given field of view (FOV) in degrees
     level, nside, npix, pixel_size = find_healpix_level(fov_min)
@@ -339,7 +356,7 @@ def search_box_reduced(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_indic
     ra_min, dec_min, ra_max, dec_max = radec_box
     dec_c,ra_c = np.mean([dec_max,dec_min]),np.mean([ra_max,ra_min])
     ra_range,dec_range = ra_max-ra_min,dec_max-dec_min
-    if fov_min is None: fov_min = min(ra_range*np.cos(np.radians(dec_c)),dec_range)
+    if fov_min is None: fov_min = min(ra_range,dec_range)
 
     vertices = np.array([
         [ra_min, dec_min],  # Bottom left
@@ -348,7 +365,25 @@ def search_box_reduced(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_indic
         [ra_min, dec_max]   # Top left
     ])
 
+    # Convert the vertices from spherical coordinates (RA, Dec) to 3D Cartesian coordinates (x, y, z)
+    # The input 'vertices' is assumed to have shape (N, 2), where:
+    #   - vertices[:, 0] represents the longitude (Right Ascension, RA)
+    #   - vertices[:, 1] represents the latitude (Declination, Dec)
+    # The 'lonlat=True' flag indicates that the input coordinates are in degrees (longitude, latitude)
     vertices_uec = hp.ang2vec(vertices[:,0],vertices[:,1],lonlat=True)
+
+    # Round the 3D Cartesian coordinates to a specified precision (5 decimal places)
+    # This rounding step helps in reducing minor numerical differences between very close coordinates,
+    # especially useful when coordinates are near the poles where small differences in longitude (RA)
+    # can cause almost identical Cartesian coordinates.
+    vertices_uec_rounded = np.round(vertices_uec, decimals=5)
+
+    # Use 'np.unique' to find unique rows in the rounded array, while preserving the original order.
+    # This step helps eliminate nearly identical rows caused by numerical precision errors,
+    # which can prevent issues like degenerate polygons in spherical queries.
+    _, idx = np.unique(vertices_uec_rounded, axis=0, return_index=True)
+    # Sorting the indices ensures the original order of the vertices is maintained.
+    vertices_uec = vertices_uec[np.sort(idx)]
 
     # Find the HEALPix parameters for a given field of view (FOV) in degrees
     level, nside, npix, pixel_size = find_healpix_level(fov_min)
@@ -519,7 +554,7 @@ def search_box_simplified(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_in
     ra_min, dec_min, ra_max, dec_max = radec_box
     dec_c,ra_c = np.mean([dec_max,dec_min]),np.mean([ra_max,ra_min])
     ra_range,dec_range = ra_max-ra_min,dec_max-dec_min
-    if fov_min is None: fov_min = min(ra_range*np.cos(np.radians(dec_c)),dec_range)
+    if fov_min is None: fov_min = min(ra_range,dec_range)
 
     vertices = np.array([
         [ra_min, dec_min],  # Bottom left
@@ -528,7 +563,25 @@ def search_box_simplified(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_in
         [ra_min, dec_max]   # Top left
     ])
 
+    # Convert the vertices from spherical coordinates (RA, Dec) to 3D Cartesian coordinates (x, y, z)
+    # The input 'vertices' is assumed to have shape (N, 2), where:
+    #   - vertices[:, 0] represents the longitude (Right Ascension, RA)
+    #   - vertices[:, 1] represents the latitude (Declination, Dec)
+    # The 'lonlat=True' flag indicates that the input coordinates are in degrees (longitude, latitude)
     vertices_uec = hp.ang2vec(vertices[:,0],vertices[:,1],lonlat=True)
+
+    # Round the 3D Cartesian coordinates to a specified precision (5 decimal places)
+    # This rounding step helps in reducing minor numerical differences between very close coordinates,
+    # especially useful when coordinates are near the poles where small differences in longitude (RA)
+    # can cause almost identical Cartesian coordinates.
+    vertices_uec_rounded = np.round(vertices_uec, decimals=5)
+
+    # Use 'np.unique' to find unique rows in the rounded array, while preserving the original order.
+    # This step helps eliminate nearly identical rows caused by numerical precision errors,
+    # which can prevent issues like degenerate polygons in spherical queries.
+    _, idx = np.unique(vertices_uec_rounded, axis=0, return_index=True)
+    # Sorting the indices ensures the original order of the vertices is maintained.
+    vertices_uec = vertices_uec[np.sort(idx)]
 
     # Find the HEALPix parameters for a given field of view (FOV) in degrees
     level, nside, npix, pixel_size = find_healpix_level(fov_min)
@@ -573,7 +626,7 @@ def search_box_simplified(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_in
 
     return df,level,nside,ids,pixel_size,fov_min
 
-def search_cone_simplified(center, radius, dir_sc, sc_name, _mode, tb_name, catalog_indices_db, fov_min, max_num_per_tile=None,astrometry_corrections={}):
+def search_cone_simplified(center, radius, dir_sc, sc_name, _mode, tb_name, catalog_indices_db,fov_min, max_num_per_tile=None,astrometry_corrections={}):
     """
     This function performs a cone search of stars in specified simplified star catalogs within a given RA/Dec center and radius.
     It applies various astrometry corrections based on the input parameters.
