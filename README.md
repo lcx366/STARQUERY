@@ -2,30 +2,45 @@
 
 [![PyPI version shields.io](https://img.shields.io/pypi/v/starcatalogquery.svg)](https://pypi.python.org/pypi/starcatalogquery/) [![PyPI pyversions](https://img.shields.io/pypi/pyversions/starcatalogquery.svg)](https://pypi.python.org/pypi/starcatalogquery/) [![PyPI status](https://img.shields.io/pypi/status/starcatalogquery.svg)](https://pypi.python.org/pypi/starcatalogquery/) [![GitHub contributors](https://img.shields.io/github/contributors/lcx366/STARQUERY.svg)](https://GitHub.com/lcx366/STARQUERY/graphs/contributors/) [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/lcx366/STARQUERY/graphs/commit-activity) [![GitHub license](https://img.shields.io/github/license/lcx366/STARQUERY.svg)](https://github.com/lcx366/STARQUERY/blob/master/LICENSE) [![Documentation Status](https://readthedocs.org/projects/starcatalogquery/badge/?version=latest)](http://starcatalogquery.readthedocs.io/?badge=latest) [![Build Status](https://travis-ci.org/lcx366/starcatalogquery.svg?branch=master)](https://travis-ci.org/lcx366/starcatalogquery)
 
-**STARQUERY** is a powerful Python package designed for astronomers and space researchers who need efficient and offline access to star catalog data. By leveraging offline databases, STARQUERY allows users to perform high-speed queries and complex filtering on large astronomical datasets. The package is ideal for tasks such as star chart matching, celestial navigation, and space object tracking.
+**STARQUERY** is a powerful Python package designed for astronomers and space researchers who need efficient and offline access to star catalog data. By leveraging offline databases, STARQUERY allows users to perform high-speed queries and complex filtering on large astronomical datasets. The package is ideal for tasks such as star map matching, celestial navigation, and space object tracking.
 
 ## 🚀 Key Features
 
 1. **Offline Star Catalog Database Creation**
+   
    - Easily import star catalog data from popular astronomical sources such as the [STScI Outerspace](https://outerspace.stsci.edu/display/MASTDATA/Catalog+Access) and [The Astronomy Nexus](https://www.astronexus.com/hyg).
    
    - Build a local star catalog database for offline usage, eliminating the need for repeated online queries and improving performance for data-intensive tasks.
+
 2. **Data Simplification**
+   
    - Extract essential star attributes (like position, magnitude, etc.) from massive star catalog files to streamline data storage and access, speeding up the query process.
-3. **Star Query**: Utilize the rectangle and spherical cap (cone) query for star filtering.
+
+3. **Star Query**
+   
    - **Rectangle Query**: Search for stars within a defined rectangular area on the sky.
    
-   - **Spherical Cap (Cone) Query**: Retrieve stars within a specific angular distance from a given point.
-4. **Visualization**: Visualize the search area and the corresponding catalog tiles.
-   - Visualize the search area and catalog tiles, helping users verify search accuracy.
+   - **Spherical Cap (Cone) Query**: Search for stars within a specific angular distance from a given point.
+
+4. **Visualization**
+   
+   - Visualize the search area and catalog tiles, helping users verify that the search area is properly covered by the catalog tiles.
+
 5. **Pixel Coordinate Calculation**
-   - Convert celestial coordinates (RA, Dec) to pixel coordinates on a custom image grid with a specified pixel width, useful for aligning star charts with sensor data, such as from telescopes or cameras.
+   
+   - Convert celestial coordinates (RA, Dec) to pixel coordinates with a specified pixel width, useful for aligning star charts with sensor data, such as from telescopes or cameras.
+
 6. **Invariant Features Computation**
+   
    - Calculate geometrically invariant features based on the spatial configuration of stars, enabling robust star matching across different views.
-7. **HEALPix-based Sky Area Division**: Divide the celestial sphere into multi-level equal-area sky areas with the HEALPix algorithm.
+
+7. **HEALPix-based Sky Area Division**
+   
    - Utilize the HEALPix algorithm to divide the celestial sphere into equal-area tiles at multiple levels of granularity, enabling efficient data partitioning and indexing, speeding up spatial queries.
+
 8. **Astronomical Corrections**
-   - Enhances the accuracy of star positions, especially for high-precision applications by applying
+   
+   - Enhances the accuracy of star positions by applying
      
      - **Proper Motion**: Adjust star positions based on their velocity across the sky.
      
@@ -33,7 +48,7 @@
      
      - **Parallax**: Adjust for the apparent positional shift due to Earth’s orbit around the Sun.
      
-     - **Deflection**: Correct for the bending of light caused by gravitational fields.
+     - **Deflection**: Correct for the bending of light caused by gravitational fields of the Sun.
 
 ## 🛠️ How to Install
 
@@ -62,10 +77,10 @@ To start building your database, for example, just download the AT-HYG v2.4 star
 ```python
 >>> from starcatalogquery import StarCatalog
 >>> sc_raw = StarCatalog.get('at-hyg24') # Get the raw star catalog AT-HYG v2.4
->>> print(sc_raw) # Display basic information about the downloaded catalog
+>>> print(sc_raw)
 ```
 
-The `StarCatalog.get()` method fetches the specified star catalog (**at-hyg24** in this example) from the online source, mainly [STScI Outerspace](https://outerspace.stsci.edu/display/GC/WebServices+for+Catalog+Access) and [The Astronomy Nexus](https://www.astronexus.com/hyg). By default, the downloaded catalog is saved to the **current working directory** under the path: `./starcatalogs/raw/at-hyg24/`. The catalog is divided into **K5-level tiles**, following the HEALPix hierarchical structure. This means that the celestial sphere is divided into $4^5 * 12 = 12,288$ tiles, each stored as an individual file. STARQUERY supports a wide range of star catalogs, which are listed below with their corresponding identifiers:
+The `StarCatalog.get()` method fetches the specified star catalog (**at-hyg24** in this example) from the online source, mainly [STScI Outerspace](https://outerspace.stsci.edu/display/GC/WebServices+for+Catalog+Access) and [The Astronomy Nexus](https://www.astronexus.com/hyg). By default, the downloaded catalog is saved to the **current working directory** under the path: `starcatalogs/raw/at-hyg24/`. The catalog is divided into **K5-level tiles**, following the HEALPix hierarchical structure. This means that the celestial sphere is divided into $4^5 * 12 = 12,288$ tiles, each stored as an individual file. STARQUERY supports a wide range of star catalogs, which are listed below with their corresponding identifiers:
 
 </center>
 
@@ -90,7 +105,7 @@ The raw star catalog typically contains extensive information about stars, resul
 
 The `reduce()` method extracts only the essential star attributes: 
 
-- **Celestial Position**** (RA, Dec) in degrees
+- **Celestial Position** (RA, Dec) in degrees
 
 - **Proper Motion** in milliarcseconds per year
 
@@ -100,11 +115,11 @@ The `reduce()` method extracts only the essential star attributes:
 
 - **Epoch**
 
-The reduced catalog is saved back into the hierarchical structure under a reduced folder: `./starcatalogs/reduced/at-hyg24/`.
+The reduced catalog is saved to the current working directory under the path: `starcatalogs/reduced/at-hyg24/`.
 
 ### Filter the Reduced Star Catalogs
 
-To further improve query efficiency, the reduced star catalog can be filtered based on the detector’s magnitude limit. Additionally, proper motion corrections are applied to adjust star positions to match the specified observation time.
+To further improve query efficiency, the reduced star catalog can be filtered based on the detector’s magnitude limit. Additionally, proper motion corrections are applied to adjust star positions to bring them closer to the specified observation time.
 
 ```python
 >>> mag_threshold = 13.0 # Set the magnitude threshold
@@ -113,7 +128,7 @@ To further improve query efficiency, the reduced star catalog can be filtered ba
 >>> print(sc_simplified) 
 ```
 
-The `simplify()` method filters stars based on a specified magnitude threshold (e.g., mag_threshold = 13.0) and updates star positions according to their proper motion, adjusted to the specified observation time (t_pm = 2019.5). The simplified catalog is stored in a dedicated folder:`./starcatalogs/simplified/at-hyg24/mag13.0/epoch2019.5/`.
+The `simplify()` method filters stars based on a specified magnitude threshold (e.g., mag_threshold = 13.0) and updates star positions according to their proper motion, adjusted to the specified observation time (t_pm = 2019.5). The simplified catalog is saved to the current working directory under the path: `starcatalogs/simplified/at-hyg24/mag13.0/epoch2019.5/`.
 
 ### Load the Local Offline Star Catalog Database
 
@@ -150,7 +165,7 @@ STARQUERY supports both **conical** and **rectangular** queries on the **raw**, 
 >>> print(sc_database)
 ```
 
-By default, all index files and databases are stored in the following directory: `./starcatalogs/indices/`. The index files are organized as CSV files containing hierarchical levels from **K1** to **K11**, along with the **K5_SUB** row number that identifies the position of stars in the **K5****-level files:
+By default, all index files and databases are stored in the current working directory under the path `starcatalogs/indices/`. The index files are organized as CSV files containing hierarchical levels from **K1** to **K11**, along with the **K5_SUB** row number that identifies the position of stars in the **K5****-level files:
 
 | K1  | ... | K5  | ... | K11 | K5_SUB |
 |:---:|:---:|:---:|:---:|:---:|:------:|
@@ -173,9 +188,31 @@ By default, all index files and databases are stored in the following directory:
 
 STARQUERY allows efficient querying of stars over a specific sky area. Depending on the size of the search region, the query system adaptively selects the appropriate hierarchical level and tiles using the **HEALPix** scheme. The package supports both **conical** (circular) and **rectangular** queries on the **raw**, **reduced**, and **simplified** catalogs.
 
-##### Conical Star Query on Raw/Reduced Catalog
+##### Conical Star Query
 
 You can extract all stars within a specified search area by setting a cutoff magnitude and other search parameters.
+
+```python
+from starcatalogquery import StarCatalog
+
+# Set search parameters
+center = [20, 30]  # Center point [RA, Dec] in degrees
+radius = 5  # Search radius in degrees
+mag_threshold = 13.0  # Cutoff magnitude
+t_pm = 2019.5  # Observation time
+max_num = 100  # Optional: Maximum number of stars to return
+
+# Perform a conical search
+sc_raw_stars = sc_raw.search_cone(center, radius, mag_threshold, t_pm, max_num=max_num)
+print(sc_raw_stars)
+```
+
+When performing a star catalog query, especially over a large area, it’s possible that the brightest stars might cluster in specific regions within the search area. This can lead to an uneven distribution of stars in your results, which may not be ideal for applications like star pattern recognition or celestial navigation. To address this, STARQUERY allows you to **limit the number of stars extracted per HEALPix tile**. This ensures a more even selection of bright stars across the entire search region, preventing a concentration of stars in just one part of the sky.
+
+```python
+max_num_per_tile = 5
+sc_raw_stars = sc_raw.search_cone(center, radius, mag_threshold, t_pm, max_num_per_tile=max_num_per_tile)
+```
 
 Queries on the simplified catalog do not require magnitude truncation or prior proper motion correction.
 
@@ -206,7 +243,7 @@ During the star query, astronomical corrections can be applied:
 >>> print(sc_simplified_stars)
 ```
 
-##### Rectangular Star Query on Raw/Reduced/Simplified Catalog
+##### Rectangular Star Query
 
 The rectangular query works similarly to the conical search but defines a rectangular region instead.
 
@@ -251,7 +288,8 @@ More details refer to the Astroalign package developed by Beroiz, M. I. ([Astroa
 🌟 **Steps**:
 
 1. **Derive Geometric Invariants**
-   - For each possible triangle formed by groups of three stars, compute unique geometric invariants as ratios ($\frac{L_2}{L_1},\frac{L_1}{L_0}$), where,  $L_2$, $L_1$, $L_0$ are the sides of the triangle sorted in descending order.
+   
+   - For each possible triangle formed by groups of three stars, compute unique geometric invariants as ratios $\left(\frac{L_2}{L_1},\frac{L_1}{L_0}\right)$, where,  $L_2$, $L_1$, $L_0$ are the sides of the triangle sorted in descending order.
 
 2. **Construct a 2D-Tree Structure**
    
@@ -268,6 +306,7 @@ More details refer to Astrometry.net ([Astrometry.net Documentation](https://ast
 🌟 **Steps**:
 
 1. **Derive Geometric Invariants**
+   
    - For each group of four stars, choose the most widely separated pair to define a local coordinate system, labeling them as “A” and “B”.
    
    - The remaining stars “C” and “D” are positioned relative to this coordinate system with coordinates of ($x_C$, $y_C$) and ($x_D$, $y_D$) .
@@ -275,6 +314,7 @@ More details refer to Astrometry.net ([Astrometry.net Documentation](https://ast
    - The resulting **geometric hash code** is the 4-vector:  ($x_C, y_C, x_D, y_D$) .
 
 2. **Break Symmetries**
+   
    - Enforce constraints  $x_C \leq x_D$ and  $x_C + x_D \leq 1$ to reduce redundant permutations.
 
 3. **Construct a 4D-Tree Structure**
@@ -359,7 +399,7 @@ The hash files store precomputed
 
 ### Read the h5-formatted Hash File
 
-Once the hash file is generated, you can load and access the stored data for efficient star pattern recognition.
+Once the hash file is generated, you can load and access the stored data for efficient blind star pattern recognition.
 
 ```python
 >>> # Path to the hash file
