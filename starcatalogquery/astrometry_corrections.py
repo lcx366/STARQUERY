@@ -1,5 +1,5 @@
 import numpy as np
-from astropy.time import Time
+from datetime import datetime, timezone
 
 from .utils import data_prepare, Const
 from .utils.math import spherical_to_cartesian, unit_vector, Matrix_dot_Vector, axes_to_antisymmetric_matrices
@@ -56,11 +56,11 @@ def apply_astrometry_corrections(df, astrometry_corrections, ra_rad, dec_rad):
     earth, sun = eph['earth'],eph['sun']
     dist = df['dist'].values * Const.kpc_in_au  # Convert distance from kpc to AU
 
-    # Convert observation time to astropy and skyfield time objects
-    t_ap = Time(astrometry_corrections['t'])  # Observation time in astropy
-    t_sf = ts.from_astropy(t_ap)  # Observation time in skyfield
-    epoch_ap = Time(df['epoch'], format='jyear')  # Epoch of star positions
-    delta_year = (t_ap - epoch_ap).to_value('year')  # Time difference in years
+    # Parse the time string into a datetime object and specify it as the UTC time zone
+    t_ap = datetime.fromisoformat(astrometry_corrections['t']).replace(tzinfo=timezone.utc)
+    t_sf = ts.utc(t_ap) # Observation time in skyfield
+    epoch = ts.J(df['epoch'].values) # Epoch of star positions
+    delta_year = (t_sf - epoch) / 365.25 # Time difference in years
 
     delta_uxyz = np.zeros((len(dist), 3))  # Initialize astrometry correction vector
     earth_t = earth.at(t_sf)
