@@ -411,6 +411,13 @@ Once the hash file is generated, you can load and access the stored data for eff
 
 ## 🔧 Change log
 
+- **1.1.6 — Apr 29, 2025**
+  
+  - Remove astropy.time from `astrometry_corrections` to speed up the calculations.
+  
+  - This may be the last version.
+
+
 - **1.1.5 — Nov 18, 2024**
   
   - Fixed the problem caused by the rectangle near the celestial pole degenerating into a triangle in the spherical rectangle query.
