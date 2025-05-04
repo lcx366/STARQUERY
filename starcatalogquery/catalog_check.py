@@ -1,40 +1,42 @@
-import os,re,subprocess
+import os,re
+import pandas as pd
+import healpy as hp
+
 from glob import glob
-from colorama import Fore
 from natsort import natsorted
+from tqdm import tqdm
 
 NUM_TILES = 12288  # Default number of HEALPix pixels for (K=5, NSIDE=32)
 
 def find_smallest_csv_file(dir_from):
     """
-    Quickly find the path of the smallest star catalog tile file.
+    Identify the smallest CSV file in a given directory.
 
     Inputs:
-        dir_from -> [str] Directory of the star catalog tile files. Expected format: '<your_path>/starcatalogs/raw/<sc_name>/'
-    Outputs:
-        smallest_file -> [str] Path of the smallest tile file.
+        dir_from -> [str] Path to the directory containing star catalog tiles.
+        Example: '/path/to/starcatalogs/raw/<catalog_name>/'
+    Returns:
+        smallest_file -> [str] Full path to the smallest CSV file in the directory.
     """
-    # Find all CSV files and obtain their file sizes
-    csv_files = glob.glob(os.path.join(dir_from, '*.csv'))
-
-    # Quickly find the smallest file
+    csv_files = glob(os.path.join(dir_from, '*.csv'))
     smallest_file = min(csv_files, key=os.path.getsize, default=None)
 
     return smallest_file
 
 def read_urls(file_path):
     """
-    Reads the URL file.
-    Each line of the file is like the following:
-    'starcatalogs/raw/sky2000/sky2000-0.csv' 'https://gsss.stsci.edu/webservices/vo/CatalogSearch.aspx?STCS=POLYGON 0.0 90.0,0.0 87.1,45.0 84.1,90.0 87.1&format=csv&catalog=sky2000'
+    Extract the URL from each line in a text file.
+    Each line should contain two quoted strings:
+        1. The relative path to a catalog CSV file
+        2. The associated download URL
 
     Usage:
         >>> file_path = 'starcatalogs/url/gaiadr3.txt'
         >>> urls = read_urls(file_path)
     Inputs:
-        file_path -> [str] The path to the URL file.
-    Outputs:
-        urls -> [list] A list of URLs extracted from the file.
+        file_path -> [str] Path to the file containing lines with quoted CSV paths and URLs.
+    Returns:
+        urls -> [list of str] A list of extracted URLs.
     """
     urls = []
     with open(file_path, 'r') as file:
@@ -55,7 +57,7 @@ def stsci_check(sc_name, dir_from, url_file):
         sc_name -> [str] Name of the star catalog.
         dir_from -> [str] Directory of the star catalog tile files. Expected format: '<your_path>/starcatalogs/raw/<sc_name>/'
         url_file -> [str] The path to the URL file.
-    Outputs:
+    Returns:
         - dir_size -> [str] Total size of the star catalog tile files with appropriate units (KB, MB).
         - file_num -> [int] Total number of the star catalog tile files.
         - validity -> [bool] Indicates whether the star catalog is complete and safe to use.
@@ -78,19 +80,20 @@ def stsci_check(sc_name, dir_from, url_file):
 
     with open(temp_url, 'w') as outputf:
         # Iterate over each expected tile and check its validity
-        for i in range(NUM_TILES):
+        for i in tqdm(NUM_TILES, desc="Checking .csv files", unit="file"):
             file_path = os.path.join(dir_from, f'{sc_name}-{i}.csv')
-
-            # Display progress
-            print(f'Checking {Fore.BLUE}{i + 1}{Fore.RESET} of {NUM_TILES}', end='\r')
 
             if file_path in files_list:
                 file_size = os.path.getsize(file_path)
                 dir_size += file_size / 1024  # Convert bytes to KB
 
                 # Output the total number of rows in the star catalog file
-                result = subprocess.run(['wc', '-l', file_path], capture_output=True, text=True)
-                star_count = int(result.stdout.split()[0]) - 2  # Subtract the file description line and header line
+                file_lines = 0
+                with open(file_path, 'rb') as f:
+                    while chunk := f.read(chunk_size):
+                        file_lines += chunk.count(b'\n')
+                    # Subtract the file description line and header line
+                    star_count = file_lines -2
 
                 # Check the first line for object count consistency
                 with open(file_path, 'r') as fn:
@@ -106,7 +109,6 @@ def stsci_check(sc_name, dir_from, url_file):
                 issue_flag = True
                 outputf.write(f"'{file_path}' '{urls[i]}'\n")
 
-    print()
     # Re-download invalid files if necessary
     if issue_flag:
         cmd = f"cat '{temp_url}' | xargs -P 16 -n 2 wget -c -O"
@@ -129,3 +131,146 @@ def stsci_check(sc_name, dir_from, url_file):
     validity = not issue_flag
 
     return dir_size_str, file_num, validity
+
+def _get_pixel_id_from_bak(path: str) -> int:
+    """
+    Extracts the HEALPix pixel ID from a backup star catalog filename.
+
+    Usage:
+        Input: "/path/to/gaiadr3-123.csv.bak"
+        Output: 123
+
+    Inputs:
+        path -> [str] Full path to a .csv.bak file.
+
+    Returns:
+        pixel_id -> [int] Pixel ID extracted from the filename.
+    """
+    pixel_id = os.path.basename(path).split('-')[-1].split(".")[0]
+    return int(pixel_id)
+
+def update_star_catalog(dir_sc: str, sc_name: str, nside: int = 32):
+    """
+    Verifies and corrects star placement errors in HEALPix-tiled star catalog files.
+
+    This function scans all star catalog tiles (CSV files), identifies stars that were assigned
+    to incorrect HEALPix pixels, and redistributes them into the correct tiles. It also re-sorts
+    all tile files by magnitude from bright to faint.
+
+    Usage:
+        >>> update_star_catalog("sc-data/starcatalogs/raw/gaiadr3/", "gaiadr3", nside=32)
+
+    Inputs:
+        dir_sc -> [str] Directory containing the star catalog tiles (CSV files).
+        sc_name -> [str] Filename of the star catalog (e.g., "gaiadr3").
+        nside -> [int,optional,default=32] HEALPix resolution parameter.
+
+    Output:
+        - All original tile files are renamed to `.csv.bak` during processing.
+        - Corrected tiles are written back to `.csv` with the same name format:
+              <sc_name>-<pixel_id>.csv
+        - Each file contains a line at the top: `#Objects found: <N>`
+        - All tile files are sorted by 'mag' column from brightest to faintest.
+        - If no star data is present, no output file will be created for that tile.
+    """
+    # Step 1: Rename all .csv files to .csv.bak for safe processing
+    pattern = os.path.join(dir_sc, f"{sc_name}-*.csv")
+    all_csv = glob(pattern)
+
+    for fpath in all_csv:
+        os.rename(fpath, fpath + ".bak")
+
+    # Initialize header tracking for each pixel
+    npix = 12 * (nside ** 2)
+    header_written = [False] * npix
+
+    # Process each .csv.bak file
+    all_bak = glob(os.path.join(dir_sc, f"{sc_name}-*.bak"))
+    for bak_file in tqdm(all_bak, desc="Redistributing stars into correct tile files", unit="file"):
+        old_pix = _get_pixel_id_from_bak(bak_file)
+
+        df = pd.read_csv(bak_file, comment='#')
+
+        if df.empty:
+            # Empty file => simply restore to .csv
+            os.rename(bak_file, bak_file[:-4])
+            header_written[old_pix] = True
+            continue
+
+        # Compute the correct pixel for each star
+        correct_pix = hp.ang2pix(nside, df['ra'], df['dec'], nest=True, lonlat=True)
+        df['pixel'] = correct_pix
+
+        # Check if any stars are misassigned
+        mismatch = (correct_pix != old_pix)
+        if not mismatch.any():
+            # No misplaced stars => rename back to .csv
+            os.rename(bak_file, bak_file[:-4])
+            header_written[old_pix] = True
+        else:
+            # Some stars need to be reassigned
+            wrong_subdf = df.loc[mismatch].copy()
+            # Group misplaced stars by target pixel
+            for pix_id, subd in wrong_subdf.groupby('pixel'):
+                out_file = os.path.join(dir_sc, f"{sc_name}-{pix_id}.csv")
+                write_header = not header_written[pix_id]
+                subd.drop(columns=['pixel'], inplace=True)
+                subd.to_csv(out_file, mode='a', index=False, header=write_header)
+                if write_header:
+                    header_written[pix_id] = True
+
+            # Write correctly placed stars back to their original tile
+            correct_subdf = df.loc[~mismatch].drop(columns=['pixel'])
+            out_file = os.path.join(dir_sc, f"{sc_name}-{old_pix}.csv")
+            write_header = not header_written[old_pix]
+            correct_subdf.to_csv(out_file, mode='a', index=False, header=write_header)
+            if write_header:
+                header_written[old_pix] = True
+
+            # Remove the .bak file after correction
+            os.remove(bak_file)
+
+    # Step 2: Re-sort each output CSV by magnitude (brightest to faintest)
+    for csv_file in tqdm(all_csv, desc="Sorting by magnitude from bright to dark", unit="file"):
+        df_all = pd.read_csv(csv_file, comment='#')
+
+        df_all.sort_values(by='mag', inplace=True, ignore_index=True)
+        nrows = len(df_all)
+        tmp_file = csv_file + ".tmp"
+
+        # Write header and sorted content to a temporary file
+        with open(tmp_file, 'w', encoding='utf-8') as fw:
+            fw.write(f"#Objects found: {nrows}\n")
+        df_all.to_csv(tmp_file, mode='a', index=False)
+
+        # Replace old file with sorted version
+        os.remove(csv_file)
+        os.rename(tmp_file, csv_file)
+
+    print("Catalog update complete. All files sorted by magnitude (brightest to faintest).")
+
+def convert_csv_to_parquet(dir_sc):
+    """
+    Convert all CSV tiles in a directory to Parquet format.
+
+    Inputs:
+        dir_sc -> [str] Path to the directory containing star catalog CSV tile files.
+    Outputs:
+        The newly created Parquet files.
+    Notes:
+        - CSV files are permanently removed after successful conversion.
+    """
+    # List all CSV files in the specified directory
+    csv_files = glob(os.path.join(dir_sc, '*.csv'))
+
+    for csv_file in tqdm(csv_files, desc="Converting CSV to Parquet", unit="file"):
+        parquet_file = csv_file.replace(".csv", ".parquet")
+
+        # Load CSV data
+        df = pd.read_csv(csv_file,comment='#')
+
+        # Write data to Parquet format with compression
+        df.to_parquet(parquet_file, index=False, compression="zstd")
+
+        # Delete the original CSV file
+        os.remove(csv_file)

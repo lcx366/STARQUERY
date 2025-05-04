@@ -2,7 +2,7 @@ from setuptools import setup,find_packages
 
 setup(
     name='starcatalogquery',
-    version='1.1.6',
+    version='2.0.0',
     description='A package for building an offline star catalog query database',
     author='Chunxiao Li',
     author_email='lcx366@126.com',
@@ -27,14 +27,13 @@ setup(
         'numpy',
         'scipy',
         'astropy',
-        'skyfield',
         'pandas',
         'h5py',
         'healpy',
         'cartopy',
         'wget',
-        'colorama',
-        'sqlalchemy',
-        'natsort'
+        'tqdm',
+        'natsort',
+        'duckdb'
         ],
 )
