@@ -99,24 +99,19 @@ The `StarCatalog.get()` method fetches the star catalog (**at-hyg32** in this ex
 
 <p align="middle">
  <img src="readme_figs/healpix_table.png" width="500">
-</p> 
+</p>
 
 STARQUERY supports a wide range of star catalogs, which are listed below with their corresponding identifiers:
 
-<table>
-  <thead>
-    <tr><th style="text-align: center;">Star Catalog Name</th><th style="text-align: center;">Identifier</th></tr>
-  </thead>
-  <tbody>
-    <tr><td style="text-align: center;">HYG v4.1</td><td style="text-align: center;">hyg41</td></tr>
-    <tr><td style="text-align: center;">AT-HYG v3.2</td><td style="text-align: center;">at-hyg32</td></tr>
-    <tr><td style="text-align: center;">GAIA DR3</td><td style="text-align: center;">gaiadr3</td></tr>
-    <tr><td style="text-align: center;">Guide Star Catalog 30</td><td style="text-align: center;">gsc30</td></tr>
-    <tr><td style="text-align: center;">UCAC5</td><td style="text-align: center;">ucac5</td></tr>
-    <tr><td style="text-align: center;">USNO-B1.0</td><td style="text-align: center;">usnob</td></tr>
-    <tr><td style="text-align: center;">2MASS</td><td style="text-align: center;">2mass</td></tr>
-  </tbody>
-</table>
+| Star Catalog Name     | Identifier |
+|:---------------------:|:----------:|
+| HYG v4.1              | hyg41      |
+| AT-HYG v3.2           | at-hyg32   |
+| GAIA DR3              | gaiadr3    |
+| Guide Star Catalog 30 | gsc30      |
+| UCAC5                 | ucac5      |
+| USNO-B1.0             | usnob      |
+| 2MASS                 | 2mass      |
 
 ### Simplify the Raw Star Catalog
 
