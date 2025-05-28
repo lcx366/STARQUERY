@@ -2,7 +2,7 @@ import numpy as np
 from datetime import datetime, timezone
 
 from .utils import data_prepare, Const
-from .utils.math import spherical_to_cartesian, unit_vector, Matrix_dot_Vector, axes_to_antisymmetric_matrices
+from .utils.math import spherical_to_cartesian, unit_vector, matrix_dot_vector, axes_to_antisymmetric_matrices
 
 # Constants used for astrometric corrections
 ANGLE_SUN_STAR = 5  # [degrees] Light deflection due to general relativity is considered when the angular separation between the Sun and the star is less than this value.
@@ -116,7 +116,7 @@ def apply_astrometry_corrections(df, astrometry_corrections, ra_rad, dec_rad):
             _rotation_uec = unit_vector(_rotation_axis)  # Rotation axis unit vector
             _antisym_matrix = axes_to_antisymmetric_matrices(_rotation_uec)  # Antisymmetric matrix from rotation axis
             _delta_theta = DEFLECTION_COEFF / np.arccos(_sun_star_cos)  # Light deflection angle
-            delta_uxyz[deflection_flags] += -Matrix_dot_Vector(_antisym_matrix, _star_uec) * _delta_theta[:, None]
+            delta_uxyz[deflection_flags] += -matrix_dot_vector(_antisym_matrix, _star_uec) * _delta_theta[:, None]
 
     # Compute corrections to RA and Dec
     delta_ra = (-np.sin(ra_rad) * delta_uxyz[:, 0] + np.cos(ra_rad) * delta_uxyz[:, 1]) / np.cos(dec_rad)
