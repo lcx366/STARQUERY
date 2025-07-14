@@ -9,4 +9,3 @@ au_in_km = 149597870.7  # 1 AU = 149,597,870.7 km
 
 # Speed of light in kilometers per second (km/s)
 light_speed = 299792.458  # speed of light = 299,792.458 km/s
-

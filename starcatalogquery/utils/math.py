@@ -68,7 +68,7 @@ def spherical_to_cartesian(ra, dec, r, degrees=True):
     y = r * np.cos(dec) * np.sin(ra)
     z = r * np.sin(dec)
 
-    return np.stack([x, y, z]).T
+    return np.stack([x, y, z], axis=-1)
 
 
 def cartesian_to_spherical(x, y, z, degrees=True):
@@ -97,7 +97,7 @@ def cartesian_to_spherical(x, y, z, degrees=True):
         ra = np.degrees(ra)
         dec = np.degrees(dec)
 
-    return np.stack([ra, dec, r]).T
+    return np.stack([ra, dec, r], axis=-1)
 
 def separation(ra1, dec1, ra2, dec2):
     """

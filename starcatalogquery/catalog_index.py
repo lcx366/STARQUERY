@@ -10,11 +10,11 @@ from functools import lru_cache
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from .wcs import xy_catalog
-from .invariantfeatures import vectorized_unique_triangles,vectorized_unique_quads
+from .invariantfeatures import calculate_invariantfeatures
 
 K_RANGE = range(1, 11)  # Levels for star catalog indexing, from 1 to 10. Higher levels mean finer sky partitions.
 K_RANGE_INVERSE = K_RANGE[::-1]
-N_STARS = 5 # Number of stars to extract for each partition.
+
 NSIDE_K1 = 2  # K1 corresponds to nside = 2
 
 NSIDE = np.power(2,K_RANGE_INVERSE)  # Calculate nside for each K
@@ -424,15 +424,6 @@ def fetch_stars_from_k5_indices(k5_indices: dict, dir_sc: str, sc_name: str, n_s
             file_path = os.path.join(dir_sc, f"{sc_name}-{k5_val}.parquet")
             if not os.path.exists(file_path): continue
 
-            # df_part = pd.read_parquet(file_path)
-
-            # if sub_list is not None:
-            #     df_part = df_part.iloc[sub_list]
-
-            # # Optional limit within each subpartition
-            # if n_stars is not None:
-            #     df_part = df_part.head(n_stars)
-
             df_part = query_parquet_tile(file_path, sub_list=sub_list,n_stars=n_stars)
 
             if not df_part.empty:
@@ -592,11 +583,11 @@ def sort_data_by_dec(data):
 
     return sorted_data, original_indices
 
-def h5_hashes(indices_path, dir_sc, sc_name, tb_name, k_min,k_max,mode_invariants,pixel_width=0.001, theta=0):
+def h5_hashes(indices_path, dir_sc, sc_name, tb_name, k_min,k_max,n_stars,num_nearest_neighbors,mode_invariants,pixel_width=0.001,theta=0):
     """
     For each region of the sky, this function calculates geometric invariants of star configurations, such as triangle
     edge length ratios or quadrilateral invariants (based on methods from astrometry.net). These invariants are useful
-    for tasks like star pattern recognition and matching.
+    for tasks like star pattern blind matching.
 
     Usage:
         >>> indices_path = 'starcatalogs/indices/at-hyg32_mag12.0_epoch2019.5.parquet'
@@ -611,6 +602,8 @@ def h5_hashes(indices_path, dir_sc, sc_name, tb_name, k_min,k_max,mode_invariant
         sc_name -> [str] Star catalog name.
         k_min -> [int] Minimum HEALPix hierarchy level.
         k_max -> [int] Maximum HEALPix hierarchy level.
+        n_stars -> [int] Number of stars per tile for each level.
+        num_nearest_neighbors -> [int] Number of nearest neighbors to consider for each point.
         mode_invariants -> [str] Type of invariants to calculate ('triangles' or 'quads').
         pixel_width -> [float, optional, default=0.001] Pixel width in degrees.
         theta -> [float, optional, default=0] Rotation angle in degrees.
@@ -639,31 +632,22 @@ def h5_hashes(indices_path, dir_sc, sc_name, tb_name, k_min,k_max,mode_invariant
             print("Generating hdf5 data ...")
             for i in range(k_min, k_max + 1):
                 query_level = f"K{i}"
-                data_dict = fetch_partitions_parallel(indices_path, query_level, dir_sc, sc_name, N_STARS)
+                data_dict = fetch_partitions_parallel(indices_path, query_level, dir_sc, sc_name, n_stars)
 
                 lvl_list = []
 
                 for j,idx in enumerate(sorted_indices):
-                    radec = data_dict[idx]
+                    radec = np.unique(data_dict[idx],axis=0)
                     x, y, wcs = xy_catalog(fp_radecs[idx], radec, pixel_width, theta)
                     xy = np.stack([x, y]).T
-
-                    if mode_invariants == 'triangles':
-                        invariants, asterisms = vectorized_unique_triangles(xy)
-                    elif mode_invariants == 'quads':
-                        invariants, asterisms = vectorized_unique_quads(xy)
-                    else:
-                        raise ValueError(f'Unrecognized mode invariants type: {mode_invariants}')
-
+                    invariants,asterisms,_ = calculate_invariantfeatures(xy, num_nearest_neighbors, mode_invariants)
                     grp = f.create_group(f"{query_level}/{j}")
                     grp.create_dataset('xy', data=xy)
                     grp.create_dataset('invariants', data=invariants)
                     grp.create_dataset('asterisms', data=asterisms)
-
                     lvl_list.append((xy, invariants, asterisms))
 
                 hashed_data[query_level] = lvl_list
-
             f.create_dataset("fp_radecs", data=sorted_fp_radecs)
 
     return outh5,hashed_data

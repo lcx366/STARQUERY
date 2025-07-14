@@ -231,7 +231,7 @@ def update_star_catalog(dir_sc: str, sc_name: str, nside: int = 32):
             os.remove(bak_file)
 
     # Step 2: Re-sort each output CSV by magnitude (brightest to faintest)
-    for csv_file in tqdm(all_csv, desc="Sorting by magnitude from bright to dark", unit="file"):
+    for csv_file in tqdm(all_csv, desc="Sorting by increasing magnitude (from brightest to faintest)", unit="file"):
         df_all = pd.read_csv(csv_file, comment='#')
 
         df_all.sort_values(by='mag', inplace=True, ignore_index=True)

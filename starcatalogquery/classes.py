@@ -2,6 +2,7 @@
 import os,warnings
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from glob import glob
 from astropy.time import Time
@@ -594,8 +595,8 @@ class StarCatalogSimplified(object):
             A string describing the StarCatalogSimplified instance.
         """
 
-        return "<StarCatalogSimplified object: CATALOG_NAME = '{:s}' CATALOG_SIZE = '{:s}' TILES_NUM = {:d} TILE_SIZE = '{:s}' STARS_NUM = '{:d}' MAG = '{:s}' MAG_CUTOFF = {:.1f} EPOCH = {:.1f}>".format(
-            self.sc_name,self.sc_size,self.tiles_num,self.tile_size,self.stars_num,self.mag,self.mag_threshold,self.epoch)  
+        return "<StarCatalogSimplified object: CATALOG_NAME = '{:s}' CATALOG_SIZE = '{:s}' TILES_NUM = {:d} TILE_SIZE = '{:s}' STARS_NUM = '{:d}' LVL = '{:d}' MAG_CUTOFF = {:.1f} EPOCH = {:.1f}>".format(
+            self.sc_name,self.sc_size,self.tiles_num,self.tile_size,self.stars_num,self.lvl,self.mag_threshold,self.epoch)
 
     @classmethod
     def _load(cls,sc_name,mag_threshold,lvl,epoch,dir_from):
@@ -799,13 +800,15 @@ class StarCatalogSimplified(object):
         info = df2info(sc_name,center,df,max_num,level,nside,ids,pixel_size,search_area)
         return Stars(info)
 
-    def hashes(self, mode_invariants='quads'):
+    def hashes(self, mode_invariants='quads', n_stars=5, num_nearest_neighbors=10):
         """
         Loads a h5-formatted hashed file containing geometric invariants such as triangles or quads.
         If not exists, generate it.
 
         Inputs:
             mode_invariants -> [str] Type of invariant to load, must be one of ['triangles', 'quads'].
+            n_stars -> [int,optional,default=9] Number of stars per tile for each level.
+            num_nearest_neighbors -> [int,optional,default=15] Number of nearest neighbors to consider for each point.
         Returns:
             H5HashesData: Parsed hash data loaded from .h5 file.
         """
@@ -826,9 +829,8 @@ class StarCatalogSimplified(object):
             hashed_data = read_h5_hashes(hash_file) # Read from the hash file and wrap in H5HashesData
         else:
             k_min, k_max = self.k_range
-            hash_file, hashed_data = h5_hashes(self._indices_path, self.tiles_dir, self.sc_name, self.tb_name, k_min, k_max,mode_invariants)
+            hash_file, hashed_data = h5_hashes(self._indices_path, self.tiles_dir, self.sc_name, self.tb_name, k_min, k_max, n_stars, num_nearest_neighbors, mode_invariants)
         return H5HashesData(self, hash_file, hashed_data, mode_invariants)
-
 
 class H5HashesData:
     """
@@ -922,11 +924,12 @@ class Stars(object):
         self.xy = np.stack([x,y]).T
         self.wcs = wcs
 
-    def invariantfeatures(self,mode_invariants='triangles'):
+    def invariantfeatures(self,num_nearest_neighbors,mode_invariants='triangles'):
         """
         Generates geometric invariant features based on the spatial configuration of stars, aiding in star pattern recognition.
 
         Inputs:
+            num_nearest_neighbors -> [int] Number of nearest neighbors to consider for each point.
             mode_invariants -> [str, optional, default='triangles'] Mode of geometric invariants to use, e.g., 'triangles' or 'quads'.
 
         Steps:
@@ -939,7 +942,7 @@ class Stars(object):
         """
         if not hasattr(self,'xy'): 
             raise Exception("The pixel coordinates of stars should be calculated first by `.pixel_xy(pixel_width`)")
-        inv_uniq,vrtx_uniq,inv_uniq_tree = calculate_invariantfeatures(self.xy, mode_invariants)
+        inv_uniq,vrtx_uniq,inv_uniq_tree = calculate_invariantfeatures(self.xy, num_nearest_neighbors, mode_invariants)
         self.invariants,self.asterisms,self.kdtree = inv_uniq,vrtx_uniq,inv_uniq_tree
 
     def tiles_draw(self):
@@ -952,3 +955,34 @@ class Stars(object):
             An image illustrating the scope of the search area and the coverage of corresponding tiles.
         """
         search_draw(self.nside,self.tiles_ids,self.search_area,self.radec,self.level)
+
+    def plot_scatter(self, width, height, output_path='stars.png'):
+        """
+        Plot a scatter diagram for the given stars, with the x and y axes scaled equally.
+
+        Inputs:
+            xy -> [numpy.ndarray] An array of shape (n, 2) containing the (x, y) coordinates of n stars.
+            width -> [int] The width resolution of the output image.
+            height -> [int] The height resolution of the output image.
+            output_path -> [str,optional,default='stars.png'] Path to the output image.
+        Outputs:
+            Scatter diagram of stars
+        """
+        # Extract x and y coordinates
+        x,y = self.xy.T
+
+        # Filter points within the specified range
+        x_min, x_max = -width / 2, width / 2
+        y_min, y_max = -height / 2, height / 2
+        mask = (x >= x_min) & (x <= x_max) & (y >= y_min) & (y <= y_max)
+        x_filtered = x[mask]
+        y_filtered = y[mask]
+
+        # Plot the scatter diagram
+        plt.figure(figsize=(6, 6), dpi=300)
+        plt.scatter(x_filtered, y_filtered, s=5)
+        plt.xlim(x_min, x_max)
+        plt.ylim(y_min, y_max)
+        plt.gca().set_aspect('equal', adjustable='box')  # Set the aspect of the axes to be equal
+        plt.savefig(output_path,bbox_inches='tight')
+        plt.close()

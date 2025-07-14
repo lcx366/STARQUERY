@@ -3,10 +3,7 @@ from numpy.linalg import norm
 from scipy.spatial import KDTree
 from itertools import combinations
 
-# Number of nearest neighbors to consider for quads/triangles formation.
-NUM_NEAREST_NEIGHBORS = 9
-
-def vectorized_unique_quads(points):
+def vectorized_unique_quads(points,num_nearest_neighbors):
     """
     Generates unique quads from a set of points by finding the nearest neighbors for each point,
     then calculating invariant features of quads.
@@ -16,6 +13,7 @@ def vectorized_unique_quads(points):
         >>> invariants, quads = unique_quads(points)
     Inputs:
         points -> [array-like] A numpy array of shape (n, 2), representing n points in 2D space.
+        num_nearest_neighbors -> [int] Number of nearest neighbors to consider for each point.
     Returns:
         inv_uniq -> [array-like] A numpy array containing the invariant features of each unique quad.
         quad_vrtx_uniq -> [array-like] A numpy array of vertex indices for each quad.
@@ -27,15 +25,13 @@ def vectorized_unique_quads(points):
     quads = set()
 
     n = len(points)
-    if n < 4:
-        raise ValueError('Number of points must be >= 4 for quads.')
-    elif n < NUM_NEAREST_NEIGHBORS+1:
+    if n < 5:
+        raise ValueError('Number of points must be > 4 for quads.')
+    elif n <= num_nearest_neighbors:
         num_nearest_neighbors = n - 1
-    else:
-        num_nearest_neighbors = NUM_NEAREST_NEIGHBORS
 
     # Precompute all neighbor indices for each point.
-    _, all_indices = tree.query(points, num_nearest_neighbors + 1)
+    _, all_indices = tree.query(points, num_nearest_neighbors)
 
     # Generate all possible combinations of 4 points (quads) from the neighbors.
     unique_combos = set()
@@ -58,7 +54,8 @@ def vectorized_unique_quads(points):
 
     # Extract the vertices for each quad.
     mask = np.ones(quads_indices.shape, dtype=bool)  # Convert the set of unique combinations into an array of indices
-    mask[quads_arange, A_indices] = False # Set positions of A_indices and B_indices to False
+    # Set positions of A_indices and B_indices to False
+    mask[quads_arange, A_indices] = False
     mask[quads_arange, B_indices] = False
     C_D_indices = np.where(mask)[1].reshape(-1, 2) # Get remaining two indices for C and D
 
@@ -112,7 +109,7 @@ def vectorized_unique_quads(points):
 
     return inv_uniq, quad_vrtx_uniq
 
-def vectorized_unique_triangles(points):
+def vectorized_unique_triangles(points,num_nearest_neighbors):
     """
     Generates unique triangles from a set of points by finding the nearest neighbors for each point,
     then calculating the ratios of the sides of these triangles.
@@ -122,6 +119,7 @@ def vectorized_unique_triangles(points):
         >>> invariants, triangles = unique_triangles(points)
     Inputs:
         points -> [array-like] A numpy array of shape (n, 2), representing n points in 2D space.
+        num_nearest_neighbors -> [int] Number of nearest neighbors to consider for each point.
     Returns:
         inv_uniq -> [array-like] A numpy array containing the ratios [L3/L2, L2/L1] for each unique triangle, where L3 is the
                     longest side, L2 is the middle, and L1 is the shortest side of the triangle.
@@ -135,15 +133,13 @@ def vectorized_unique_triangles(points):
     triangles = set()
 
     n = len(points)
-    if n < 3:
-        raise ValueError('Number of points must be >= 3 for triangles.')
-    elif n < NUM_NEAREST_NEIGHBORS + 1:
+    if n < 4:
+        raise ValueError('Number of points must be > 3 for triangles.')
+    elif n <= num_nearest_neighbors:
         num_nearest_neighbors = n - 1
-    else:
-        num_nearest_neighbors = NUM_NEAREST_NEIGHBORS
 
     # Precompute all neighbor indices for each point.
-    _, all_indices = tree.query(points, num_nearest_neighbors + 1)
+    _, all_indices = tree.query(points, num_nearest_neighbors)
 
     # Generate all possible combinations of 3 points (triangles) from the neighbors.
     unique_combos = set()
@@ -182,13 +178,14 @@ def vectorized_unique_triangles(points):
 
     return inv_uniq, triang_vrtx_uniq
 
-def calculate_invariantfeatures(sources,mode_invariants):
+def calculate_invariantfeatures(sources,num_nearest_neighbors,mode_invariants):
     """
     Computes geometric invariant features for a set of source points by generating unique triangles or quads.
     These features are then used to build a KDTree for efficient matching.
 
     Inputs:
         sources -> [array-like] A 2D numpy array representing the pixel coordinates of source points.
+        num_nearest_neighbors -> [int] Number of nearest neighbors to consider for each point.
         mode_invariants -> [str] Mode of geometric invariants to use. Available options are 'triangles' or 'quads'.
     Returns:
         invariants -> [array-like] A 2D numpy array containing the invariant ratios (L2/L1, L1/L0) for each triangle, where L2 >= L1 >= L0 are the sides of the triangle.
@@ -197,11 +194,11 @@ def calculate_invariantfeatures(sources,mode_invariants):
     """
     # Derive unique geometric invariants
     if mode_invariants == 'triangles':
-        invariants,asterisms = vectorized_unique_triangles(sources)
+        invariants,asterisms = vectorized_unique_triangles(sources,num_nearest_neighbors)
     elif mode_invariants == 'quads':
-        invariants,asterisms = vectorized_unique_quads(sources)
+        invariants,asterisms = vectorized_unique_quads(sources,num_nearest_neighbors)
     else:
-        raise ValueError('mode of invariant features must be either "triangles" or "quads"')
+        raise ValueError('Mode of invariant features must be either "triangles" or "quads"')
     # Construct a KDTree structure using the unique invariants
     kdtree = KDTree(invariants)
     return invariants,asterisms,kdtree

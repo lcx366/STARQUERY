@@ -150,7 +150,7 @@ To further improve query efficiency, the reduced star catalog can be filtered ba
 ```
 
 ```python
-<StarCatalogSimplified object: CATALOG_NAME = 'at-hyg32' CATALOG_SIZE = '137.1 MB' TILES_NUM = 12288 TILE_SIZE = '1.83 deg' STARS_NUM = '1959581' MAG = '< 12' MAG_CUTOFF = 12.0 EPOCH = 2019.5>
+<StarCatalogSimplified object: CATALOG_NAME = 'at-hyg32' CATALOG_SIZE = '137.1 MB' TILES_NUM = 12288 TILE_SIZE = '1.83 deg' STARS_NUM = '1959581' LVL = '6' MAG = '< 12' MAG_CUTOFF = 12.0 EPOCH = 2019.5>
 ```
 
 The Catalog Simplification Workflow is as follows:
@@ -403,7 +403,23 @@ STARQUERY supports visualization of both **conical** and **rectangular** sky reg
   <img src="readme_figs/cone.png" width="500" />
 </p>
 
+```python
+>>> # Visualize a scatter diagram for the given stars.
+>>> res = width,height = (2048,2048)
+>>> sc_simplified_stars.plot_scatter(width,height)
+```
+
+<p align="middle">
+  <img src="readme_figs/stars.png" width="500" />
+</p>
+
 ## 🔧 Change log
+
+- **2.0.1 — Jul 14, 2025**
+
+  - Added a func `plot_scatter` for drawing a scatter diagram of the given stars.
+  - Added args `num_nearest_neighbors` in func `calculate_invariantfeatures`.
+  - Added args `n_stars` and `num_nearest_neighbors` in func `h5_hashes`.
 
 - **2.0.0 — May 03, 2025**
   
