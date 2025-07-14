@@ -1,9 +1,10 @@
-from glob import glob
 import os
+from glob import glob
+from pyarrow.parquet import ParquetFile
 
 NUM_TILES = 12288  # Default number of HEALPix pixels for (K=5, NSIDE=32)
 
-def tiles_statistic(dir_to):
+def tiles_statistic(dir_to,file_type='csv'):
     """
     Counts the total size and number of tile files in a star catalog directory and assesses the catalog's validity.
 
@@ -24,6 +25,21 @@ def tiles_statistic(dir_to):
     # Calculate the total size of all files in the directory
     dir_size = sum([os.path.getsize(file) / 1024 for file in file_list])  # Size in KB
 
+    # Count total lines across all files
+    total_lines = 0
+    if file_type == 'csv':
+        chunk_size = 1024 * 1024  # 1 MB
+        for file in file_list:
+            with open(file, 'rb') as f:
+                while chunk := f.read(chunk_size):
+                    total_lines += chunk.count(b'\n')
+    elif file_type == 'parquet':
+        for file in file_list:
+            pf = ParquetFile(file)
+            total_lines += pf.metadata.num_rows
+    else:
+        raise ValueError('Unrecognized file type.')
+
     # Check if the number of files matches the expected count based on tile size
     expected_file_count = NUM_TILES  # Expected file count for a full catalog
     validity = file_num == expected_file_count
@@ -36,7 +52,7 @@ def tiles_statistic(dir_to):
     else:
         dir_size = '{:.1f} GB'.format(dir_size / 1024 ** 2)
 
-    return file_num, dir_size, validity
+    return file_num, dir_size, total_lines, validity
 
 def starcatalog_info(sc_name):
     """
@@ -53,12 +69,12 @@ def starcatalog_info(sc_name):
         desc -> [str] Brief description of the catalog.
     """
     catalogs = {
-        'hyg37': {
+        'hyg41': {
             'star_num': '~ 0.12 Million',
             'mag': '< 9',
             'desc': 'The database is a subset of the data in three major catalogs: the Hipparcos Catalog, the Yale Bright Star Catalog (5th Edition), and the Gliese Catalog of Nearby Stars (3rd Edition).'
         },
-        'at-hyg24': {
+        'at-hyg32': {
             'star_num': '~ 2.5 Million',
             'mag': '< 12',
             'desc': 'The database is an augmented Tycho-2 catalog, which is essentially complete to V = 11.0 and has many fainter stars down to about V = 12.5, with Gaia DR3 distances and proper motions for nearly all of them.'

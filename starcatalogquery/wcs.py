@@ -14,7 +14,7 @@ def Rot(seq, angles, degrees=True):
         seq -> [str] Sequence of axes ('X', 'Y', 'Z') for rotation, e.g., 'ZY'.
         angles -> [float or list] Rotation angle(s) in radians (default) or degrees.
         degrees -> [bool,optional,default=True] If True, angles are interpreted as degrees, otherwise radians.
-    Outputs:
+    Returns:
         rotation_matrix -> [2D/3D array-like] Rotation matrix (3x3 or array of 3x3 matrices).
     Note:
         - The function is only suitable for a right-handed reference frame.
@@ -53,7 +53,7 @@ def wcs_trans(pixel_width, fp_radec):
     Inputs: 
         pixel_width -> [list or tuple of int] Pixel width in degrees. If a single float, it's used for both axes.
         fp_radec -> [list or tuple of int] Fiducial point (center pointing) of the camera in RA and Dec (in degrees).
-    Outputs:
+    Returns:
         wcs -> [astropy.wcs.WCS] WCS object representing the transformation.
     """
     # Handling single or tuple pixel width inputs
@@ -98,7 +98,7 @@ def xy_catalog(fp_radec,radec,pixel_width,theta=0):
         radec -> [2d array of float] Celestial coordinates of stars in form of (RA, Dec) in degrees.
         pixel_width -> [float] Pixel width in degrees.
         theta -> [float,optional,default=0] Rotation angle from WCS frame(equivalent to ENU) to image frame in radians.
-    Outputs:
+    Returns:
         x -> [array of float] x pixel coordinates of the stars      
         y -> [array of float] y pixel coordinates of the stars   
         wcs -> [astropy.wcs.WCS] WCS object representing the transformation.

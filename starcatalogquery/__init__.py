@@ -1,21 +1,22 @@
 import pandas as pd
 
-from .classes import StarCatalog, CatalogDB
+from .classes import StarCatalog
 from .utils import data_prepare
 
-# Load Earth Orientation Parameters (EOP) and Leap Seconds (LS) files
+# Load Earth Orientation Parameters (EOP) and leap seconds.
 data_prepare.iers_load()
 
-# Load the JPL Solar System Planetary Ephemeris (SSPE) file
+# Load the JPL Solar System Planetary Ephemeris (DE440S),
+# providing accurate positions of solar system bodies for celestial computations.
 data_prepare.sspe_load('DE440S')
 
-# Configure pandas display options
-pd.set_option('display.max_columns', None) # Display all columns in DataFrame outputs
-pd.set_option("display.precision", 8) # Set the default floating-point precision to 8 digits
-pd.set_option('display.width', 1000) # Set the maximum display width for DataFrames
-pd.set_option('display.max_rows', 200) # Set the maximum display records for DataFrames
+# Configure pandas display settings for improved DataFrame readability.
+pd.set_option('display.max_columns', None)       # Show all columns in DataFrame outputs
+pd.set_option('display.precision', 8)            # Use 8-digit precision for floating-point values
+pd.set_option('display.width', 1000)             # Set the maximum width of DataFrame outputs
+pd.set_option('display.max_rows', 200)           # Limit maximum rows displayed in DataFrame output
 
-# The __init__.py file initializes the starcatalogquery package by loading essential data and configuring pandas settings.
-# The iers_load function loads Earth Orientation Parameters and Leap Seconds, which are crucial for accurate astronomical calculations.
-# The sspe_load function loads the JPL Solar System Planetary Ephemeris, providing precise positions of solar system bodies.
-# Pandas options are configured to ensure a comprehensive and precise display of DataFrame outputs, facilitating data analysis and debugging.
+# This initialization file prepares the starcatalogquery package by:
+# - Loading Earth orientation and leap second data for accurate time transformations,
+# - Initializing planetary ephemerides for solar system object positioning,
+# - Configuring pandas for consistent and detailed tabular output during analysis and debugging.

@@ -20,7 +20,6 @@ def wget_download(url, dir_file, desc=None):
 
     # Use wget to download the file and store it at the specified path
     wget_out = wget.download(url, dir_file)
-    print()  # Print a newline for better output formatting
 
     return wget_out
 

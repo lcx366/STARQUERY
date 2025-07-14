@@ -5,28 +5,25 @@ TWOPI = 2 * np.pi
 
 def unit_vector(vector):
     """
-    Calculate the unit vector of a given vector or an array of vectors.
+    Normalize a vector or an array of vectors to unit vectors.
+    Supports 1D or ND array, normalizes along the last axis.
 
     Usage:
-        >>> unit_vector([1, 2, 3])
-        array([0.26726124, 0.53452248, 0.80178373])
-        >>> unit_vector([[1, 2, 3], [4, 5, 6]])
-        array([[0.26726124, 0.53452248, 0.80178373],
-               [0.45584231, 0.56980288, 0.68376346]])
+        >>> print(unit_vector([1, 2, 3]))
+        [0.26726124 0.53452248 0.80178373]
+        >>> print(unit_vector([[1, 2, 3], [4, 5, 6]]))
+        [[0.26726124 0.53452248 0.80178373]
+         [0.45584231 0.56980288 0.68376346]]
+
     Inputs:
         vector -> [array-like] The input vector(s).
     Outputs:
         unit_vector -> [array-like] The normalized unit vector(s).
     """
-    vector = np.array(vector)
-
-    if vector.ndim == 1:
-        norm_vector = norm(vector)  # Calculate the norm of a single vector
-    elif vector.ndim == 2:
-        norm_vector = norm(vector, axis=1)[:, None]  # Calculate the norms of multiple vectors
+    norm_vector = norm(vector, axis=-1, keepdims=True)
     return vector / norm_vector
 
-def Matrix_dot_Vector(matrix, vector):
+def matrix_dot_vector(matrix, vector):
     """
     Computes the dot product of matrices and vectors.
 
@@ -34,25 +31,16 @@ def Matrix_dot_Vector(matrix, vector):
         >>> import numpy as np
         >>> matrix = np.arange(1296).reshape(8, 18, 3, 3)
         >>> vector = np.arange(432).reshape(8, 18, 3)
-        >>> vector_trans = Matrix_dot_Vector(matrix, vector)
+        >>> vector_trans = matrix_dot_vector(matrix, vector)
+
     Inputs:
         matrix -> [array-like] Multi-dimensional matrix.
         vector -> [array-like] Multi-dimensional vector.
     Outputs:
         vector_trans -> [array-like] Transformed vectors.
     """
-    matrix, vector = np.array(matrix), np.array(vector)
-
-    if matrix.ndim == 2 and vector.ndim == 1:
-        vector_trans = matrix @ vector  # Dot product of 2D matrix and 1D vector
-    elif matrix.ndim == 3 and vector.ndim == 2:
-        vector_trans = np.squeeze(matrix @ vector[:, :, None])  # Dot product with broadcasting for 3D and 2D
-    elif matrix.ndim == 4 and vector.ndim == 3:
-        vector_trans = np.squeeze(matrix @ vector[:, :, :, None])  # Dot product with broadcasting for 4D and 3D
-    else:
-        raise Exception('The dimensions of the matrix and vector do not match.')
-
-    return vector_trans
+    vector = np.asarray(vector)
+    return np.matmul(matrix, vector[..., None]).squeeze(-1)
 
 def spherical_to_cartesian(ra, dec, r, degrees=True):
     """
@@ -80,7 +68,7 @@ def spherical_to_cartesian(ra, dec, r, degrees=True):
     y = r * np.cos(dec) * np.sin(ra)
     z = r * np.sin(dec)
 
-    return np.stack([x, y, z]).T
+    return np.stack([x, y, z], axis=-1)
 
 
 def cartesian_to_spherical(x, y, z, degrees=True):
@@ -109,7 +97,7 @@ def cartesian_to_spherical(x, y, z, degrees=True):
         ra = np.degrees(ra)
         dec = np.degrees(dec)
 
-    return np.stack([ra, dec, r]).T
+    return np.stack([ra, dec, r], axis=-1)
 
 def separation(ra1, dec1, ra2, dec2):
     """

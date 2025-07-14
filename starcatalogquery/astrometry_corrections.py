@@ -2,23 +2,28 @@ import numpy as np
 from datetime import datetime, timezone
 
 from .utils import data_prepare, Const
-from .utils.math import spherical_to_cartesian, unit_vector, Matrix_dot_Vector, axes_to_antisymmetric_matrices
+from .utils.math import spherical_to_cartesian, unit_vector, matrix_dot_vector, axes_to_antisymmetric_matrices
 
-# Constants for astrometry corrections
-ANGLE_SUN_STAR = 5  # Angle in degrees. Consider light deflection due to general relativity when the angle between the sun and the star is less than this value.
-SOLAR_ANGULAR_RADIUS = 16 / 60  # Solar angular radius in degrees.
-DEFLECTION_COEFF = np.deg2rad(1.75 / 3600) * np.deg2rad(16 / 60)  # Light deflection coefficient. 1.75 arcseconds is the deflection when light grazes the sun's surface.
+# Constants used for astrometric corrections
+ANGLE_SUN_STAR = 5  # [degrees] Light deflection due to general relativity is considered when the angular separation between the Sun and the star is less than this value.
+SOLAR_ANGULAR_RADIUS = 16 / 60  # [degrees] The apparent angular radius of the Sun.
+DEFLECTION_COEFF = np.deg2rad(1.75 / 3600) * np.deg2rad(16 / 60)  # Light deflection coefficient. 1.75 arcseconds is the deflection at the Sun's limb.
 
 def parallax2dist(theta_mas):
     """
-    Convert distance (kpc) from parallax (mas).
+    Convert stellar parallax (in milliarcseconds) to distance (in kiloparsecs).
 
     Usage:
         >>> dist_kpc = parallax2dist(1000)
     Inputs:
-        theta_mas -> [float] Parallax in milliarcseconds.
-    Outputs:
-        dist_kpc -> [float] Distance in kiloparsecs.
+        theta_mas -> [float] Parallax angle in milliarcseconds (mas).
+    Returns:
+        dist_kpc -> [float] Distance to the object in kiloparsecs (kpc).
+
+    Notes:
+        The conversion uses the small-angle approximation:
+        distance (kpc) = 1 / (parallax (radians) × AU per kiloparsec),
+        where 1 kpc ≈ 206265 × 10^3 AU.
     """
     theta_rad = np.deg2rad(theta_mas / 3.6e6)
     dist_kpc = 1 / (Const.kpc_in_au * theta_rad)
@@ -48,7 +53,7 @@ def apply_astrometry_corrections(df, astrometry_corrections, ra_rad, dec_rad):
                This term corrects for the bending of light from stars due to the gravitational field of the Sun, based on general relativity.
         ra_rad -> [array-like] Right Ascension values in radians.
         dec_rad -> [array-like] Declination values in radians.
-    Outputs:
+    Returns:
         df -> [DataFrame] Corrected star catalog data.
     """
     # Load time system and JPL ephemeris for Earth and Sun
@@ -111,7 +116,7 @@ def apply_astrometry_corrections(df, astrometry_corrections, ra_rad, dec_rad):
             _rotation_uec = unit_vector(_rotation_axis)  # Rotation axis unit vector
             _antisym_matrix = axes_to_antisymmetric_matrices(_rotation_uec)  # Antisymmetric matrix from rotation axis
             _delta_theta = DEFLECTION_COEFF / np.arccos(_sun_star_cos)  # Light deflection angle
-            delta_uxyz[deflection_flags] += -Matrix_dot_Vector(_antisym_matrix, _star_uec) * _delta_theta[:, None]
+            delta_uxyz[deflection_flags] += -matrix_dot_vector(_antisym_matrix, _star_uec) * _delta_theta[:, None]
 
     # Compute corrections to RA and Dec
     delta_ra = (-np.sin(ra_rad) * delta_uxyz[:, 0] + np.cos(ra_rad) * delta_uxyz[:, 1]) / np.cos(dec_rad)

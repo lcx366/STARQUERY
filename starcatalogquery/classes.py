@@ -1,20 +1,21 @@
 # Load external packages
 import os,warnings
-from glob import glob
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+
+from glob import glob
 from astropy.time import Time
-from colorama import Fore
+from tqdm import tqdm
 from natsort import natsorted
-import sqlite3
 
 # Load internal function library
-from .catalog_index import build_catalog_indices,delete_table,generate_catalog_db,read_h5_hashes,h5_hashes
+from .catalog_index import estimate_mag_limit,estimate_level,find_healpix_level,build_catalog_indices,h5_hashes,read_h5_hashes
 from .catalog_download import stsci_download,hyg_download
-from .catalog_check import stsci_check
+from .catalog_check import stsci_check,update_star_catalog,convert_csv_to_parquet
 from .utils.starcatalog_statistic import tiles_statistic,starcatalog_info
 from .utils.df2info import df2info
-from .catalog_query import search_box_raw,search_cone_raw,search_box_reduced,search_cone_reduced,search_box_simplified,search_cone_simplified
+from .catalog_query import search_box_simplified,search_cone_simplified
 from .tiles_draw import search_draw
 from .wcs import xy_catalog
 from .invariantfeatures import calculate_invariantfeatures
@@ -22,14 +23,14 @@ from .astrometry_corrections import parallax2dist
 
 TILE_SIZE = 1.83  # Pixel size (in degrees) for HEALPix hierarchy level 'K5'
 
-def format_columns(df, format_dict = {'ra': 8, 'dec': 8, 'pm_ra': 3, 'pm_dec': 3, 'dist': 8, 'mag': 3, 'epoch': 3}):
+def format_columns(df, format_dict = {'ra': 8, 'dec': 8, 'pm_ra': 3, 'pm_dec': 3, 'dist': 8, 'mag': 3, 'epoch': 6}):
     """
     Formats the specified columns of a DataFrame according to the provided format dictionary.
 
     Inputs:
         df -> [pandas.DataFrame] The DataFrame to be formatted.
         format_dict -> [dict] A dictionary where the keys are column names and the values are the number of decimal places to round to.
-    Outputs:
+    Returns:
         df -> [pandas.DataFrame] The formatted DataFrame.
     """
     for col, decimals in format_dict.items():
@@ -52,42 +53,43 @@ class StarCatalog(object):
         - load: Load star catalogs at various levels of hierarchy from local storage.
     """
 
-    def get(sc_name,mag_range=None,dir_to=None):
+    def get(sc_name,mag_range=None,dir_base=None):
         """
         Downloads 'raw' star catalog files from remote servers or loads them from a local directory.
 
         Usage:
             >>> from starcatalogquery import StarCatalog
-            >>> sc_raw = StarCatalog.get('at-hyg24')
+            >>> sc_raw = StarCatalog.get('at-hyg32')
         Inputs:
             sc_name -> [str] Name of the star catalog.
             mag_range -> [tuple,optional,default=None] Range of magnitudes.
-            Available star catalog include 'hyg37','at-hyg24','gaiadr3','gsc30','ucac5','usnob','2mass', etc.
+            Available star catalog include 'hyg41','at-hyg32','gaiadr3','gsc30','ucac5','usnob','2mass', etc.
             For more star catalogs, please refer to the Space Telescope Science Institute:
             https://outerspace.stsci.edu/display/GC/WebServices+for+Catalog+Access
-            dir_to -> [str, optional, default=None] Directory for storing the downloaded catalog.
+            dir_base -> [str, optional, default=None] Base directory to save files.
             If None, a built-in directory is used by default.
-        Outputs:
+        Returns:
             sc_raw -> [StarCatalogRaw object] An instance of the StarCatalogRaw class.
         """
         # List of supported star catalogs
-        valid_catalogs = ['hyg37','at-hyg24','gaiadr3','gsc30','ucac5','usnob','2mass']
+        valid_catalogs = ['hyg41','at-hyg32','gaiadr3','gsc30','ucac5','usnob','2mass']
         if sc_name not in valid_catalogs:
             raise ValueError(f'Star catalog {sc_name} is not supported. Valid catalogs are: {valid_catalogs}')
 
-        dir_starcatalogs = os.path.join('starcatalogs', 'raw', sc_name)
-        if dir_to is None:
-            dir_to = dir_starcatalogs # Set default download directory if not specified
-        else:
-            dir_to = os.path.join(dir_to,dir_starcatalogs)
+        # Gather star catalog information
+        stars_num, mag, description = starcatalog_info(sc_name)
+
+        if dir_base is None:
+            dir_base = os.path.expanduser(f'~/src/sc-data')
+        dir_to = os.path.join(dir_base, f'starcatalogs/raw/{sc_name}/')
 
         # Handle specific catalogs that require different download methods
         if sc_name in valid_catalogs[:2]:
             # For HYG and AT-HYG star catalogs
-            dir_size, file_num, validity = hyg_download(sc_name,dir_to)
+            dir_size, file_num, stars_num, validity = hyg_download(sc_name,dir_to)
         else:
             # For GAIA DER3, GSC 30, UCAC5, USNOB, 2MASS star catalogs
-            dir_url = os.path.join(dir_to.split('starcatalogs')[0], 'starcatalogs', 'url')
+            dir_url = os.path.join(dir_base, 'starcatalogs/url')
             url_file = os.path.join(dir_url, f'{sc_name}.txt')
             os.makedirs(dir_url, exist_ok=True)
 
@@ -102,16 +104,8 @@ class StarCatalog(object):
                 dir_size,file_num,validity = stsci_check(sc_name,dir_to,url_file)
             else:
                 # Download and check star catalog if not already present
-                stsci_download(sc_name, mag_range, dir_to, url_file)
+                stsci_download(sc_name, mag_range, url_file, dir_to)
                 dir_size,file_num,validity = stsci_check(sc_name,dir_to,url_file)
-
-        # Gather star catalog information
-        stars_num,mag,description = starcatalog_info(sc_name)
-
-        indices_dir = os.path.join(dir_to.split('starcatalogs')[0], 'starcatalogs', 'indices')
-        tb_name = sc_name
-        indices_path = os.path.join(indices_dir, f'{tb_name}.csv')
-        db_path = os.path.join(indices_dir, 'catalogs.db')
 
         info = {
             'tiles_dir': dir_to,
@@ -123,11 +117,7 @@ class StarCatalog(object):
             '_mode': 'raw',
             'stars_num': stars_num,
             'mag': mag,
-            'description': description,
-            '_indices_dir': indices_dir,
-            '_tb_name': tb_name,
-            '_indices_path': indices_path,
-            '_db_path': db_path
+            'description': description
         }
 
         return StarCatalogRaw(info)  
@@ -138,17 +128,17 @@ class StarCatalog(object):
 
         Usage:
             >>> from starcatalogquery import StarCatalog
-            >>> # load the raw star catalog AT-HYG v2.4
-            >>> dir_from_raw = 'starcatalogs/raw/at-hyg24/'
-            >>> at_hyg24_raw = StarCatalog.load(dir_from_raw)
+            >>> # load the raw star catalog AT-HYG v3.2
+            >>> dir_from_raw = 'starcatalogs/raw/at-hyg32/'
+            >>> at_hyg32_raw = StarCatalog.load(dir_from_raw)
             >>>
-            >>> # load the reduced star catalog AT-HYG v2.4
-            >>> dir_from_reduced = 'starcatalogs/reduced/at-hyg24/'
-            >>> at_hyg24_reduced = StarCatalog.load(dir_from_reduced)
+            >>> # load the reduced star catalog AT-HYG v3.2
+            >>> dir_from_reduced = 'starcatalogs/reduced/at-hyg32/'
+            >>> at_hyg32_reduced = StarCatalog.load(dir_from_reduced)
             >>>
-            >>> # load the simplified star catalog AT-HYG v2.4
-            >>> dir_from_simplified = 'starcatalogs/simplified/at-hyg24/mag12.0/epoch2019.5/'
-            >>> at_hyg24_simplified = StarCatalog.load(dir_from_simplified)
+            >>> # load the simplified star catalog AT-HYG v3.2
+            >>> dir_from_simplified = 'starcatalogs/simplified/at-hyg32/mag12.0/epoch2019.5/'
+            >>> at_hyg32_simplified = StarCatalog.load(dir_from_simplified)
         Inputs:
             dir_from -> [str] Directory for the star catalog files.
         Outputs:
@@ -163,11 +153,10 @@ class StarCatalog(object):
         parse_dir = os.path.normpath(dir_from).split(os.sep)
 
         if 'epoch' in parse_dir[-1]:
-            _mode, sc_name, mag_threshold, epoch = parse_dir[-4:]
-            tb_name = f'{sc_name}_{mag_threshold}_{epoch}'
+            _mode, sc_name, level_mag_threshold, epoch = parse_dir[-4:]
+            level,mag_threshold = level_mag_threshold.split('-')
         else:
             _mode, sc_name = parse_dir[-2:]
-            tb_name = sc_name
 
         # load the star catalog
         if _mode == 'raw':
@@ -177,18 +166,11 @@ class StarCatalog(object):
         elif _mode == 'simplified':
             mag_threshold = float(mag_threshold[3:])
             epoch = float(epoch[5:])
-            starcatalog = StarCatalogSimplified._load(sc_name,mag_threshold,epoch,dir_from)
+            lvl = int(level[3:])
+            starcatalog = StarCatalogSimplified._load(sc_name,mag_threshold,lvl,epoch,dir_from)
+            starcatalog.build_indices()
         else:
             raise Exception(f"Invalid star catalog level: {_mode}.")
-
-        indices_dir = os.path.join(dir_from.split('starcatalogs')[0], 'starcatalogs', 'indices')
-        indices_path = os.path.join(indices_dir, f'{tb_name}.csv')
-        db_path = os.path.join(indices_dir, 'catalogs.db')
-
-        starcatalog._tb_name = tb_name
-        starcatalog._indices_path = indices_path
-        starcatalog._db_path = db_path
-        starcatalog._indices_dir = indices_dir
 
         return starcatalog
 
@@ -203,7 +185,7 @@ class StarCatalogRaw(object):
         - tile_size (str): Geometric size of each tile in the catalog, in degrees.
         - sc_size (str): Overall size of the star catalog (e.g., in MB or GB).
         - validity (bool): Indicates whether the star catalog is complete and valid for use.
-        - sc_name (str): Name of the star catalog, such as 'at-hyg24'.
+        - sc_name (str): Name of the star catalog, such as 'at-hyg32'.
         - _mode (str): Level of the star catalog, set to 'raw' for this class.
         - stars_num (str): Total number of the stars included in the catalog.
         - mag (str): Range of stars magnitudes in the catalog.
@@ -212,8 +194,6 @@ class StarCatalogRaw(object):
     Methods:
         - _load: Loads the raw star catalog from a specified directory.
         - reduce: Reduces the raw star catalog to contain only essential information.
-        - search_box: Searches for stars within a specified rectangular area.
-        - search_cone: Searches for stars within a specified conical area.
     """   
     def __init__(self,info): 
         """
@@ -232,7 +212,7 @@ class StarCatalogRaw(object):
             A string describing the StarCatalogRaw instance.
         """
     
-        return "<StarCatalogRaw object: CATALOG_NAME = '{:s}' CATALOG_SIZE = '{:s}' TILES_NUM = {:d} TILE_SIZE = '{:s}' STARS_NUM = '{:s}' MAG = '{:s}'>".format(
+        return "<StarCatalogRaw object: CATALOG_NAME = '{:s}' CATALOG_SIZE = '{:s}' TILES_NUM = {:d} TILE_SIZE = '{:s}' STARS_NUM = '{:}' MAG = '{:s}'>".format(
             self.sc_name,self.sc_size,self.tiles_num,self.tile_size,self.stars_num,self.mag)
 
     @classmethod
@@ -242,19 +222,19 @@ class StarCatalogRaw(object):
 
         Usage:
             >>> from starcatalogquery import StarCatalogRaw
-            >>> # load the raw star catalog AT-HYG v2.4
-            >>> dir_from_raw = 'starcatalogs/raw/at-hyg24/'
-            >>> at_hyg24_raw = StarCatalogRaw.load('at-hyg24',dir_from_raw)
+            >>> # load the raw star catalog AT-HYG v3.2
+            >>> dir_from_raw = 'starcatalogs/raw/at-hyg32/'
+            >>> at_hyg32_raw = StarCatalogRaw.load('at-hyg32',dir_from_raw)
         Inputs:
-            sc_name -> [str] Name of the star catalog (e.g., 'at-hyg24').
+            sc_name -> [str] Name of the star catalog (e.g., 'at-hyg32').
             dir_from -> [str] Directory for the star catalog files.
         Outputs:
-            at_hyg24_raw -> [StarCatalogRaw object] Instance of the class StarCatalogRaw.
+            at_hyg32_raw -> [StarCatalogRaw object] Instance of the class StarCatalogRaw.
         """
-
         # Calculate total file size and total number of the tile files
-        file_num, dir_size, validity = tiles_statistic(dir_from)
         stars_num, mag, description = starcatalog_info(sc_name)
+        file_num, dir_size, total_lines, validity = tiles_statistic(dir_from)
+        stars_num = total_lines - file_num*2
 
         info = {
             'tiles_dir': dir_from,
@@ -276,9 +256,9 @@ class StarCatalogRaw(object):
         Reduce the raw star catalog, retaining only essential star information.
 
         Usage:
-            >>> at_hyg24_reduced = at_hyg24_raw.reduce()
+            >>> at_hyg32_reduced = at_hyg32_raw.reduce()
         Outputs:
-            at_hyg24_reduced -> [StarCatalogReduced object] The reduced star catalog.
+            at_hyg32_reduced -> [StarCatalogReduced object] The reduced star catalog.
         """
         # Copying existing information
         info = self.__dict__.copy()
@@ -288,35 +268,30 @@ class StarCatalogRaw(object):
         dir_reduced = tiles_dir.replace('raw','reduced')
         os.makedirs(dir_reduced, exist_ok=True)
 
-        file_list = glob(tiles_dir+'*') 
-        sc_name = self.sc_name 
-        print(f'Reducing the star catalog {sc_name}, which may take a considerable amount of time...')
-
-        if sc_name in ['hyg37','at-hyg24']:
-            if sc_name == 'hyg37':
+        file_list = glob(f'{tiles_dir}*')
+        sc_name = self.sc_name
+        desc = "Reducing tile files"
+        if sc_name in ['hyg41','at-hyg32']:
+            if sc_name == 'hyg41':
                 original_columns = ['ra','dec','pmra','pmdec','dist','mag']
-            elif sc_name == 'at-hyg24':   
+            elif sc_name == 'at-hyg32':
                 original_columns = ['ra','dec','pm_ra','pm_dec','dist','mag']
             rename_dict = {'pmra':'pm_ra', 'pmdec':'pm_dec'}    
             # Processing each file in the raw star catalog directory
-            for j, tile_file in enumerate(file_list, start=1):
-                desc = f'Reducing {Fore.BLUE}{j}{Fore.RESET} of {self.tiles_num}'
-                print(desc,end='\r')
+            for tile_file in tqdm(file_list, desc=desc, unit="file"):
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip',usecols=original_columns)
                 # Applying specific transformations based on the catalog name
                 # units: ra->hourangle, dec->deg, pmra->mas/a, pmdec->mas/a, dist->parsecs, epoch->2000.0
-                df.rename(columns=rename_dict, inplace=True)
-                df['epoch'] = '2000.0'
                 df_reduced = df.apply(pd.to_numeric,errors='coerce')
                 df_reduced = df_reduced.reindex(columns=original_columns)
                 df_reduced['ra'] = df_reduced['ra']*15 # Convert hourangle to deg
                 df_reduced['dist'] = df_reduced['dist'] / 1e3  # Convert pc to kpc
+                df_reduced['epoch'] = 2000.0
+                df_reduced.rename(columns=rename_dict, inplace=True)
                 df_reduced = format_columns(df_reduced)
                 df_reduced.to_csv(tile_file.replace('raw','reduced'),index=False)
         elif sc_name == 'gaiadr3':
-            for j, tile_file in enumerate(file_list, start=1):
-                desc = f'Reducing {Fore.BLUE}{j}{Fore.RESET} of {self.tiles_num}'
-                print(desc,end='\r')
+            for tile_file in tqdm(file_list, desc=desc, unit="file"):
                 # Define the columns to be read and the renamed mapping after reading
                 original_columns = ['ra', 'dec', 'pmra', 'pmdec', 'parallax', 'mag', 'epoch']
                 rename_dict = {'pmra': 'pm_ra', 'pmdec': 'pm_dec'}
@@ -337,9 +312,7 @@ class StarCatalogRaw(object):
                 df_reduced = format_columns(df_reduced)
                 df_reduced.to_csv(tile_file.replace('raw','reduced'),index=False)
         elif sc_name == 'gsc30':
-            for j, tile_file in enumerate(file_list, start=1):
-                desc = f'Reducing {Fore.BLUE}{j}{Fore.RESET} of {self.tiles_num}'
-                print(desc,end='\r')
+            for tile_file in tqdm(file_list, desc=desc, unit="file"):
                 # Define the columns to be read and the renamed mapping after reading
                 original_columns = ['ra','dec','rapm','decpm','parallax','mag','epoch']
                 rename_dict = {'rapm':'pm_ra', 'decpm':'pm_dec'}
@@ -360,9 +333,7 @@ class StarCatalogRaw(object):
                 df_reduced = format_columns(df_reduced)
                 df_reduced.to_csv(tile_file.replace('raw','reduced'),index=False)
         elif sc_name == 'ucac5':
-            for j, tile_file in enumerate(file_list, start=1):        
-                desc = f'Reducing {Fore.BLUE}{j}{Fore.RESET} of {self.tiles_num}'
-                print(desc,end='\r')
+            for tile_file in tqdm(file_list, desc=desc, unit="file"):
                 # Define the columns to be read and the renamed mapping after reading
                 original_columns = ['ra','dec','pmur','pmud','mag','epu']
                 rename_dict = {'pmur':'pm_ra', 'pmud':'pm_dec','epu':'epoch'}
@@ -375,9 +346,7 @@ class StarCatalogRaw(object):
                 df_reduced = format_columns(df_reduced)
                 df_reduced.to_csv(tile_file.replace('raw','reduced'),index=False)
         elif sc_name == 'usnob':
-            for j, tile_file in enumerate(file_list, start=1):        
-                desc = f'Reducing {Fore.BLUE}{j}{Fore.RESET} of {self.tiles_num}'
-                print(desc,end='\r')
+            for tile_file in tqdm(file_list, desc=desc, unit="file"):
                 # Define the columns to be read and the renamed mapping after reading
                 original_columns = ['ra','dec','pmRA','pmDEC','mag','Epoch']
                 rename_dict = {'pmRA':'pm_ra', 'pmDEC':'pm_dec','Epoch':'epoch'}
@@ -390,9 +359,7 @@ class StarCatalogRaw(object):
                 df_reduced = format_columns(df_reduced)
                 df_reduced.to_csv(tile_file.replace('raw','reduced'),index=False)  
         elif sc_name == '2mass':
-            for j, tile_file in enumerate(file_list, start=1):   
-                desc = f'Reducing {Fore.BLUE}{j}{Fore.RESET} of {self.tiles_num}'
-                print(desc,end='\r')
+            for tile_file in tqdm(file_list, desc=desc, unit="file"):
                 # Define the columns to be read and the renamed mapping after reading
                 original_columns = ['ra','dec','mag','jdate']
                 df = pd.read_csv(tile_file,skiprows=1,dtype=str,na_values=[' ', ''],on_bad_lines='skip',usecols=original_columns)
@@ -404,86 +371,16 @@ class StarCatalogRaw(object):
                 df_reduced.pop('jdate')
                 df_reduced = format_columns(df_reduced)
                 df_reduced.to_csv(tile_file.replace('raw','reduced'),index=False)
-
-        print('\nFinished')
                     
-        file_num,dir_size,validity = tiles_statistic(dir_reduced)  
+        file_num,dir_size,total_lines,validity = tiles_statistic(dir_reduced)
+        stars_num = total_lines - file_num
+
         info['_mode'] = 'reduced'
         info['tiles_dir'] = dir_reduced
         info['sc_size'] = dir_size
+        info['stars_num'] = stars_num
 
-        return StarCatalogReduced(info)  
-    
-    def search_box(self,radec_box,mag_threshold,t_pm,fov_min=None,max_num=None,max_num_per_tile=None):
-        """
-        Perform a rectangle search of stars on raw star catalogs.
-
-        Usage:
-            >>> stars = at_hyg24_raw.search_box([20,30,30,40],9,2022.0)
-        Inputs:
-            radec_box -> [list] Rectangular search area in form of [ra_min, dec_min, ra_max, dec_max] in degrees.
-            mag_threshold -> [float] Apparent magnitude limit.
-            t_pm -> [float] Epoch to which the stars are unified.
-            fov_min -> [float,optional,default=None] Field of view parameters in degrees.
-            It determines the hierarchical division of the sky region in HEALPix,
-            ensuring that each tile's size is greater than one-quarter of the FOV and less than or equal to half of the FOV.
-            If None, it takes the short side of the rectangle as the value.
-            max_num -> [int,optional,default=None] Maximum number of stars to include in the search, sorted by brightness.
-            If None, includes all stars meeting the magnitude criteria.
-            max_num_per_tile [int,optional,default=None] Maximum number of stars per tile to include in the search.
-        Outputs:
-            stars -> [Stars object] An instance of Stars with the search results.
-        """
-        # Calculating the center of the search box
-        ra_min,dec_min,ra_max,dec_max = radec_box
-        center = [(ra_min+ra_max)/2,(dec_min+dec_max)/2]
-
-        search_area = {'box':radec_box}
-
-        dir_sc = self.tiles_dir
-        sc_name,_mode = self.sc_name,self._mode
-        tb_name = self._tb_name
-        catalog_indices_db = self._db_path
-
-        # Performs a rectangular search on the raw star catalog considering magnitude and proper motion.
-        df,level,nside,ids,pixel_size,fov_min = search_box_raw(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_indices_db,mag_threshold,t_pm,fov_min,max_num_per_tile)
-        info = df2info(sc_name,center,df,max_num,level,nside,ids,pixel_size,search_area,fov_min)
-        return Stars(info)
-
-    def search_cone(self,center,radius,mag_threshold,t_pm,fov_min=None,max_num=None,max_num_per_tile=None):
-        """
-        Perform a conical search of stars on raw star catalogs.
-
-        Usage:
-            >>> stars = at_hyg24_raw.search_cone([30, 40], 5, 9, 2022.0)
-        Inputs:
-            center -> [list] Center of the cone search area in the form of [ra, dec] in degrees.
-            radius -> [float] Radius of the cone search area in degrees.
-            mag_threshold -> [float] Apparent magnitude limit.
-            t_pm -> [float] Epoch to which the stars are unified.
-            fov_min -> [float,optional,default=None] Field of view parameters in degrees.
-            It determines the hierarchical division of the sky region in HEALPix,
-            ensuring that each tile's size is greater than one-quarter of the FOV and less than or equal to half of the FOV.
-            If None, it takes the search diameter as the value.
-            max_num -> [int,optional,default=None] Maximum number of stars to include in the search, sorted by brightness.
-            If None, includes all stars meeting the magnitude criteria.
-            max_num_per_tile -> [int,optional,default=None] Maximum number of stars per tile to include in the search.
-        Outputs:
-            Stars: An instance of Stars with the search results.
-        """
-
-        search_area = {'cone':(center,radius)}
-
-        dir_sc = self.tiles_dir
-        sc_name,_mode = self.sc_name,self._mode
-        tb_name = self._tb_name
-
-        catalog_indices_db = self._db_path
-
-        # Performs a conical search of stars on the raw star catalog considering magnitude and proper motion.
-        df,level,nside,ids,pixel_size,fov_min = search_cone_raw(center,radius,dir_sc,sc_name,_mode,tb_name,catalog_indices_db,mag_threshold,t_pm,fov_min,max_num_per_tile)
-        info = df2info(sc_name,center,df,max_num,level,nside,ids,pixel_size,search_area,fov_min)
-        return Stars(info)      
+        return StarCatalogReduced(info)
 
 class StarCatalogReduced(object):
     """
@@ -496,7 +393,7 @@ class StarCatalogReduced(object):
         - tile_size (str): Geometric size of each tile in the catalog, in degrees.
         - sc_size (str): Overall size of the star catalog (e.g., in MB or GB).
         - validity (bool): Indicates whether the star catalog is complete and valid for use.
-        - sc_name (str): Name of the star catalog, such as 'at-hyg24'.
+        - sc_name (str): Name of the star catalog, such as 'at-hyg32'.
         - _mode (str): Level of the star catalog, set to 'reduced' for this class.
         - stars_num (str): Total number of the stars included in the catalog.
         - mag (str): Range of star magnitudes in the catalog.
@@ -504,10 +401,7 @@ class StarCatalogReduced(object):
 
     Methods:
         - _load: Loads the reduced star catalog from a specified directory.
-        - build_indices: Aggregates indices from all tile files and generates a comprehensive catalog index file.
         - simplify: Simplifies the reduced star catalog to a more basic version.
-        - search_box: Searches for stars within a specified rectangular area.
-        - search_cone: Searches for stars within a specified conical area.
     """ 
     def __init__(self,info):
         """
@@ -526,7 +420,7 @@ class StarCatalogReduced(object):
             A string describing the StarCatalogReduced instance.
         """
     
-        return "<StarCatalogReduced object: CATALOG_NAME = '{:s}' CATALOG_SIZE = '{:s}' TILES_NUM = {:d} TILE_SIZE = '{:s}' STARS_NUM = '{:s}' MAG = '{:s}'>".format(
+        return "<StarCatalogReduced object: CATALOG_NAME = '{:s}' CATALOG_SIZE = '{:s}' TILES_NUM = {:d} TILE_SIZE = '{:s}' STARS_NUM = '{:d}' MAG = '{:s}'>".format(
             self.sc_name,self.sc_size,self.tiles_num,self.tile_size,self.stars_num,self.mag)
 
     @classmethod
@@ -537,18 +431,19 @@ class StarCatalogReduced(object):
         Usage:
             >>> from starcatalogquery import StarCatalogReduced
             >>> # load the reduced star catalog HYG v3.7
-            >>> dir_from_reduced = 'starcatalogs/reduced/at-hyg24/'
-            >>> at_hyg24_reduced = StarCatalogReduced.load('at-hyg24',dir_from_reduced)
+            >>> dir_from_reduced = 'starcatalogs/reduced/at-hyg32/'
+            >>> at_hyg32_reduced = StarCatalogReduced.load('at-hyg32',dir_from_reduced)
         Inputs:
-            sc_name -> [str] Name of the star catalog (e.g., 'at-hyg24').
+            sc_name -> [str] Name of the star catalog (e.g., 'at-hyg32').
             dir_from -> [str] Directory for the star catalog files.
         Outputs:
-            at_hyg24_reduced -> [StarCatalogReduced object] Instance of the class StarCatalogReduced.
+            at_hyg32_reduced -> [StarCatalogReduced object] Instance of the class StarCatalogReduced.
         """ 
 
         # Calculate total file size and total number of the tile files
-        file_num,dir_size,validity = tiles_statistic(dir_from) 
-        stars_num,mag,description = starcatalog_info(sc_name)
+        stars_num, mag, description = starcatalog_info(sc_name)
+        file_num, dir_size, total_lines, validity = tiles_statistic(dir_from)
+        stars_num = total_lines - file_num
 
         info = {
             'tiles_dir': dir_from,
@@ -563,37 +458,44 @@ class StarCatalogReduced(object):
             'description': description
         }
 
-        return cls(info)  
+        return cls(info)
 
-    def build_indices(self):
-        """
-        Aggregate indices from all tile files for each star across different HEALPix hierarchy levels,
-        generating a comprehensive csv-formatted catalog index file.
-
-        Usage:
-            >>> at_hyg24_reduced.build_indices()
-        """
-        indices_path = build_catalog_indices(self.tiles_dir,self.sc_name,self._tb_name)
-
-    def simplify(self,mag_threshold,t_pm):
+    def simplify(self, t_pm, fov=None, mag_threshold=None):
         """
         Simplify the reduced star catalog, applying magnitude truncation and proper motion correction，
         making it a basic version suitable for quick lookups.
-        
+
         Usage:
-            >>> at_hyg24_simplified = at_hyg24_reduced.simplify(9.0,2022.0)
+            >>> at_hyg32_simplified = at_hyg32_reduced.simplify(9.0,2025.5)
         Inputs:
-            mag_threshold -> [float] Apparent magnitude limit.
             t_pm -> [float] Epoch to which the stars are unified.
+            fov -> [tuple,optional,default=None] FOV of camera, such as (7,9)
+            mag_threshold -> [float,optional,default=None] Magnitude threshold to cutoff star catalog entries.
         Outputs:
-            Instance of class StarCatalogSimplified      
+            Instance of class StarCatalogSimplified
         """
         # Copying existing information
         info = self.__dict__.copy()
 
+        if fov is not None:
+            # Estimate the magnitude threshold
+            level, nside, npix, pixel_size = find_healpix_level(fov_min=min(fov))
+            lvl = int(level[1:])
+            mag_threshold = estimate_mag_limit(lvl)
+        else:
+            if mag_threshold is None:
+                raise AttributeError('No magnitude threshold specified.')
+            mag_threshold = round(mag_threshold, 1)
+            #  Compute the theoretical highest HEALPix order such that a star catalogue
+            #  complete to magnitude *mag_threshold* still provides at least *30*
+            #  stars **on average** in every pixel.
+            lvl_max = estimate_level(mag_threshold)
+            lvl = int(f'99{lvl_max}')  # Indicates that the healpix order has not been determined yet
+
         # Setting up the directory for the reduced catalog
         tiles_dir = self.tiles_dir
-        dir_simplified = os.path.join(tiles_dir.replace('reduced', 'simplified'),f'mag{mag_threshold:.1f}',f'epoch{t_pm:.1f}')
+        dir_simplified = os.path.join(tiles_dir.replace('reduced', 'simplified'), f'lvl{lvl}-mag{mag_threshold:.1f}',
+                                      f'epoch{t_pm:.1f}')
         os.makedirs(dir_simplified, exist_ok=True)
 
         # Construct file pattern
@@ -601,24 +503,20 @@ class StarCatalogReduced(object):
         file_pattern = os.path.join(tiles_dir, f'{sc_name}-*.csv')
         file_list = natsorted(glob(file_pattern))
 
-        print('Simplifying the star catalog {:s}, which may take a considerable amount of time'.format(sc_name))  
-
-        # Processing each file in the raw star catalog directory
-        for j, tile_file in enumerate(file_list, start=1):
-            desc = 'Simplifying {:s}{:d}{:s} of {:d}'.format(Fore.BLUE,j,Fore.RESET,self.tiles_num)
-            print(desc,end='\r')
-
+        desc = 'Simplifying tile files'
+        # Processing each file in the reduced star catalog directory
+        for tile_file in tqdm(file_list, desc=desc, unit="file"):
             df_simplified = pd.read_csv(tile_file).dropna()
             mag = df_simplified['mag']
-            mag_flag = np.abs(mag) < mag_threshold
-            df_simplified = df_simplified[mag_flag].sort_values(by=['mag'])
+            mag_flag = mag < mag_threshold
+            df_simplified = df_simplified[mag_flag]
 
-            # Correct proper motion    
-            dt = float(t_pm) - df_simplified['epoch']  
+            # Correct proper motion
+            dt = t_pm - df_simplified['epoch']
 
             if {'pm_ra', 'pm_dec'}.issubset(df_simplified.columns):
-                df_simplified['ra'] +=  df_simplified['pm_ra']/3.6e6 * dt
-                df_simplified['dec'] += df_simplified['pm_dec']/3.6e6 * dt
+                df_simplified['ra'] += df_simplified['pm_ra'] / 3.6e6 * dt
+                df_simplified['dec'] += df_simplified['pm_dec'] / 3.6e6 * dt
                 df_simplified['pm_ra'] = df_simplified['pm_ra']
                 df_simplified['pm_dec'] = df_simplified['pm_dec']
                 df_simplified['epoch'] = t_pm
@@ -630,93 +528,30 @@ class StarCatalogReduced(object):
                 df_simplified = df_simplified[dist_flag]
 
             df_simplified = format_columns(df_simplified)
-            output_path = os.path.join(dir_simplified, os.path.basename(tile_file))
-            df_simplified.to_csv(output_path, index=False)
+            csv_path = os.path.join(dir_simplified, os.path.basename(tile_file))
+            parquet_path = csv_path.replace('.csv', '.parquet')
 
-        print('\nFinished')
+            # Write DataFrame to Parquet file
+            df_simplified.to_csv(csv_path, index=False)
 
-        tb_name = '{:s}_mag{:.1f}_epoch{:.1f}'.format(sc_name, mag_threshold, t_pm)
-        indices_path = os.path.join(self._indices_dir, f'{tb_name}.csv')
+        update_star_catalog(dir_simplified,sc_name)
+        convert_csv_to_parquet(dir_simplified)
 
-        file_num,dir_size,validity = tiles_statistic(dir_simplified)  
+        file_num, dir_size, total_lines, validity = tiles_statistic(dir_simplified, 'parquet')
+        stars_num = total_lines
+
         info['_mode'] = 'simplified'
         info['tiles_dir'] = dir_simplified
         info['sc_size'] = dir_size
         info['mag_threshold'] = mag_threshold
         info['epoch'] = t_pm
-        info['_tb_name'] = tb_name
-        info['_indices_path'] = indices_path
+        info['lvl'] = lvl
+        info['stars_num'] = stars_num
 
-        return StarCatalogSimplified(info)    
+        starcatalog_simplified = StarCatalogSimplified(info)
+        starcatalog_simplified.build_indices()
 
-    def search_box(self,radec_box,mag_threshold,t_pm,fov_min=None,max_num=None,max_num_per_tile=None):
-        """
-        Perform a rectangle search of stars on reduced star catalogs.
-
-        Usage:
-            >>> stars = at_hyg24_reduced.search_box([20,30,30,40],9,2022.0)
-        Inputs:
-            radec_box -> [list] Rectangular search area in form of [ra_min, dec_min, ra_max, dec_max] in degrees.
-            mag_threshold -> [float] Apparent magnitude limit.
-            t_pm -> [float] Epoch to which the stars are unified.
-            fov_min -> [float,optional,default=None] Field of view parameters in degrees.
-            It determines the hierarchical division of the sky region in HEALPix,
-            ensuring that each tile's size is greater than one-quarter of the FOV and less than or equal to half of the FOV.
-            If None, it takes the search diameter as the value.
-            max_num -> [int,optional,default=None] Maximum number of stars to include in the search, sorted by brightness.
-            If None, includes all stars meeting the magnitude criteria.
-            max_num_per_tile [int,optional,default=None] Maximum number of stars per tile to include in the search.
-        Outputs:
-            stars -> [Stars object] An instance of Stars with the search results.
-        """
-        # Calculating the center of the search box
-        ra_min,dec_min,ra_max,dec_max = radec_box
-        center = [(ra_min+ra_max)/2,(dec_min+dec_max)/2]
-
-        search_area = {'box':radec_box}
-
-        dir_sc = self.tiles_dir
-        sc_name,_mode = self.sc_name,self._mode
-        tb_name = self._tb_name
-        catalog_indices_db = self._db_path
-
-        # Performs a rectangular search on the reduced star catalog considering magnitude and proper motion.
-        df,level,nside,ids,pixel_size,fov_min = search_box_reduced(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_indices_db,mag_threshold,t_pm,fov_min,max_num_per_tile)
-        info = df2info(sc_name,center,df,max_num,level,nside,ids,pixel_size,search_area,fov_min)
-        return Stars(info)
-
-    def search_cone(self,center,radius,mag_threshold,t_pm,fov_min=None,max_num=None,max_num_per_tile=None):
-        """
-        Perform a conical search of stars on reduced star catalogs.
-
-        Usage:
-            >>> stars = at_hyg24_reduced.search_cone([20,30],10,9,2022.0)
-        Inputs:
-            center -> [list] Center of the cone search area in form of [ra_c, dec_c] in degrees.
-            radius -> [float] Angular radius of the cone.
-            mag_threshold -> [float] Apparent magnitude limit.
-            t_pm -> [float] Epoch to which the stars are unified.
-            fov_min -> [float,optional,default=None] Field of view parameters in degrees.
-            It determines the hierarchical division of the sky region in HEALPix,
-            ensuring that each tile's size is greater than one-quarter of the FOV and less than or equal to half of the FOV.
-            If None, it takes the search diameter as the value.
-            max_num -> [int,optional,default=None] Maximum number of stars to include in the search, sorted by brightness.
-            If None, includes all stars meeting the magnitude criteria.
-            max_num_per_tile -> [int,optional,default=None] Maximum number of stars per tile to include in the search.
-        Outputs:
-            stars -> [Stars object] An instance of Stars with the search results.
-        """
-        search_area = {'cone':(center,radius)}
-
-        dir_sc = self.tiles_dir
-        sc_name,_mode = self.sc_name,self._mode
-        tb_name = self._tb_name
-        catalog_indices_db = self._db_path
-
-        # Performs a conical search of stars on the reduced star catalog considering magnitude and proper motion.
-        df,level,nside,ids,pixel_size,fov_min = search_cone_reduced(center,radius,dir_sc,sc_name,_mode,tb_name,catalog_indices_db,mag_threshold,t_pm,fov_min,max_num_per_tile)
-        info = df2info(sc_name,center,df,max_num,level,nside,ids,pixel_size,search_area,fov_min)
-        return Stars(info)  
+        return starcatalog_simplified
 
 class StarCatalogSimplified(object):
     """
@@ -733,16 +568,14 @@ class StarCatalogSimplified(object):
         - stars_num (str): Total number of the stars included in the catalog.
         - mag (str): Range of star magnitudes in the catalog.
         - description (str): A brief description or summary of the catalog.
-        - _mode_invariants -> [str] Mode of geometric invariants after executing h5_hashes, e.g., 'triangles', 'quads'.
-        - hashed_h5 -> [str] A h5-formatted hashed file for star catalog geometric invariants
 
     Methods:
         - _load: Loads the simplified star catalog from a specified directory.
         - search_box: Searches for stars within a specified rectangular area.
         - search_cone: Searches for stars within a specified conical area.
         - build_indices: Aggregates indices from all tile files and generates a comprehensive catalog index file.
-        - h5_hashes: Generates a h5-formatted star catalog geometric invariants hashed file.
-        - read_h5_hashes: Reads the h5-formatted hashed file, essential for blind star pattern matching.
+        - check_lvl: Check consistency between the camera-derived HEALPix level and the star catalog level.
+        - hashes: Generates a h5-formatted star catalog geometric invariants hashed file.
     """   
     def __init__(self,info):
         """
@@ -762,29 +595,30 @@ class StarCatalogSimplified(object):
             A string describing the StarCatalogSimplified instance.
         """
 
-        return "<StarCatalogSimplified object: CATALOG_NAME = '{:s}' CATALOG_SIZE = '{:s}' TILES_NUM = {:d} TILE_SIZE = '{:s}' STARS_NUM = '{:s}' MAG = '{:s}' MAG_CUTOFF = {:.1f} EPOCH = {:.1f}>".format(
-            self.sc_name,self.sc_size,self.tiles_num,self.tile_size,self.stars_num,self.mag,self.mag_threshold,self.epoch)  
+        return "<StarCatalogSimplified object: CATALOG_NAME = '{:s}' CATALOG_SIZE = '{:s}' TILES_NUM = {:d} TILE_SIZE = '{:s}' STARS_NUM = '{:d}' LVL = '{:d}' MAG_CUTOFF = {:.1f} EPOCH = {:.1f}>".format(
+            self.sc_name,self.sc_size,self.tiles_num,self.tile_size,self.stars_num,self.lvl,self.mag_threshold,self.epoch)
 
     @classmethod
-    def _load(cls,sc_name,mag_threshold,epoch,dir_from):
+    def _load(cls,sc_name,mag_threshold,lvl,epoch,dir_from):
         """
         Load the simplified star catalog files from a specified directory.
 
         Usage:
             >>> from starcatalogquery import StarCatalogSimplified
-            >>> # load the simplified star catalog AT-HYG v2.4
-            >>> dir_from_simplified = 'starcatalogs/simplified/at_hyg24/mag12.0/epoch2019.5/'
-            >>> at_hyg24_simplified = StarCatalogSimplified.load('at-hyg24',5,9,2022,dir_from_simplified)
+            >>> # load the simplified star catalog AT-HYG v3.2
+            >>> dir_from_simplified = 'starcatalogs/simplified/at_hyg32/mag12.0/epoch2019.5/'
+            >>> at_hyg32_simplified = StarCatalogSimplified.load('at-hyg32',5,9,2022,dir_from_simplified)
         Inputs:
-            sc_name -> [str] Name of the star catalog (e.g., 'at-hyg24').
+            sc_name -> [str] Name of the star catalog (e.g., 'at-hyg32').
             dir_from -> [str] Directory for the star catalog files.
         Outputs:
-            at_hyg24_simplified -> [StarCatalogSimplified object] Instance of the class StarCatalogSimplified with loaded data.
+            at_hyg32_simplified -> [StarCatalogSimplified object] Instance of the class StarCatalogSimplified with loaded data.
         """  
 
-        # Calculate total size and number of tile files   
-        file_num,dir_size,validity = tiles_statistic(dir_from) 
+        # Calculate total size and number of tile files
         stars_num,mag,description = starcatalog_info(sc_name)
+        file_num, dir_size, total_lines, validity = tiles_statistic(dir_from,'parquet')
+        stars_num = total_lines
 
         info = {
             'tiles_dir': dir_from,
@@ -798,7 +632,8 @@ class StarCatalogSimplified(object):
             'mag': mag,
             'description': description,
             'mag_threshold': mag_threshold,
-            'epoch': epoch
+            'lvl': lvl,
+            'epoch': epoch,
         }
 
         return cls(info) 
@@ -809,16 +644,95 @@ class StarCatalogSimplified(object):
         generating a comprehensive csv-formatted catalog index file.
 
         Usage:
-            >>> at_hyg24_simplified.build_indices()
-        """
-        indices_path = build_catalog_indices(self.tiles_dir,self.sc_name,self._tb_name)
+            >>> at_hyg32_simplified.build_indices()
 
-    def search_box(self,radec_box,fov_min=None,max_num=None,max_num_per_tile=None,astrometry_corrections={}):
+        Outputs:
+            - A sorted Parquet file located at:
+              <project_root>/starcatalogs/indices/<sc_name>.parquet
+            - The index file includes one row per star, with columns:
+              K6, K7, K8, K9, K10, K5_SUB
+        Notes:
+            - * lvl ≤ 5  : no index is built (too coarse for practical use).
+        """
+        lvl = self.lvl
+        tb_name = f'{self.sc_name}_lvl{lvl}-mag{self.mag_threshold}_epoch{self.epoch}'
+        indices_dir = os.path.join(self.tiles_dir.split('starcatalogs')[0], 'starcatalogs/indices')
+        indices_path = os.path.join(indices_dir, f'{tb_name}.parquet')
+
+        #  Decide k_list and k_range
+        if lvl > 99:  # encoded form, e.g. 998 ⇒ lvl_max = 8
+            lvl = int(str(lvl)[2:])
+            k_list = range(6, lvl + 1)  # index 6 … lvl_max
+            k_range = (1, lvl)
+        else:  # normal case
+            k_list = range(lvl, lvl + 1)
+            k_range = (k_list.start, k_list.stop - 1)
+
+        #  Build index only when it makes sense and is not yet present
+        if lvl > 5 and not os.path.exists(indices_path):
+            os.makedirs(indices_dir, exist_ok=True)
+            build_catalog_indices(self.tiles_dir,self.sc_name,indices_path,k_list)
+
+        self._indices_path = indices_path
+        self.tb_name = tb_name
+        self.k_range = k_range
+
+    def check_lvl(self,camera_params):
+        """
+        Check consistency between the camera-derived HEALPix level and the star catalog level.
+
+        This function verifies whether the HEALPix level determined from camera parameters
+        (such as field of view, pixel size, and resolution) matches the level information
+        specified in the simplified star catalog (`sc_simplified`).
+
+        - If the star catalog explicitly specifies a level, it must match the camera's expected level.
+        - If the catalog does not specify a level (level > 99), then:
+            - The catalog must support at least the required level (source level <= catalog max level).
+            - Otherwise, an error is raised.
+        - If the camera parameters are not provided, but the catalog specifies a level, raise an error.
+
+        Inputs:
+            camera_params -> [dict]
+                Dictionary containing camera information, must include key 'fov' (field of view in degrees).
+                Example: {'fov': [fov_width, fov_height], ...}
+        """
+        self._lvl_tmp = None
+        lvl_catalog = self.lvl
+        fov = camera_params.get('fov',0)
+
+        if fov:
+            # Calculate the expected HEALPix level based on the minimum FOV
+            lvl_source,_nside,_npix, _pixel_size = find_healpix_level(fov_min=min(fov))
+            lvl_source = int(lvl_source[1:])
+
+            if lvl_catalog > 99:
+                # Catalog does not specify a level, parse maximum level
+                lvl_max = int(str(lvl_catalog)[2:])
+                if lvl_source > lvl_max:
+                    raise Exception(
+                        f'Given FOV {fov} deg, the star catalog maximum level {lvl_max} is insufficient (required: {lvl_source}).')
+                else:
+                    self.case = '1-2'
+                    warnings.warn('FOV is specified, but star catalog level is unspecified.')
+            else:
+                # Catalog specifies a definite level, must match exactly
+                if lvl_source != lvl_catalog:
+                    raise Exception(
+                        f'Camera-derived HEALPix level ({lvl_source}) does not match catalog level ({lvl_catalog}).')
+                self.case = '1-1'
+            self._lvl_tmp = lvl_source
+        else:
+            if lvl_catalog < 99:
+                # Camera FOV missing, but catalog level specified: inconsistent
+                raise Exception('Camera FOV is not provided, but star catalog specifies a level.')
+            self.case = '0-2'
+
+    def search_box(self,radec_box,max_num=None,max_num_per_tile=None,lvl=None,astrometry_corrections={}):
         """
         Perform a rectangle search of stars on simplified star catalogs.
 
         Usage:
-            >>> stars = at_hyg24_simplified.search_box([20,30,30,40])
+            >>> stars = at_hyg32_simplified.search_box([20,30,30,40])
         Inputs:
             radec_box -> [list] Rectangular search area in form of [ra_min, dec_min, ra_max, dec_max] in degrees.
             fov_min -> [float,optional,default=None] Field of view parameters in degrees.
@@ -844,25 +758,24 @@ class StarCatalogSimplified(object):
         search_area = {'box':radec_box}
 
         dir_sc = self.tiles_dir
-        sc_name,_mode = self.sc_name,self._mode
-        tb_name = self._tb_name
-        catalog_indices_db = self._db_path
+        sc_name = self.sc_name
+        indices_path = self._indices_path
+        if lvl is None: lvl = self.lvl
 
         # Performs a rectangular search on the simplified star catalog
-        df,level,nside,ids,pixel_size,fov_min = search_box_simplified(radec_box, dir_sc, sc_name, _mode, tb_name, catalog_indices_db,fov_min, max_num_per_tile,astrometry_corrections)
-        info = df2info(sc_name,center,df,max_num,level,nside,ids,pixel_size,search_area,fov_min)
+        df,level,nside,ids,pixel_size = search_box_simplified(radec_box, dir_sc, sc_name, indices_path, lvl, max_num_per_tile,astrometry_corrections)
+        info = df2info(sc_name,center,df,max_num,level,nside,ids,pixel_size,search_area)
         return Stars(info)
 
-    def search_cone(self,center,radius,fov_min=None,max_num=None,max_num_per_tile=None,astrometry_corrections={}):
+    def search_cone(self,center,radius,max_num=None,max_num_per_tile=None,lvl=None,astrometry_corrections={}):
         """
         Perform a conical search of stars on simplified star catalogs.
 
         Usage:
-            >>> stars = at_hyg24_simplified.search_cone([20,30],10)
+            >>> stars = at_hyg32_simplified.search_cone([20,30],10)
         Inputs:
             center -> [list] Center of the cone in form of [ra_c, dec_c] in degrees.
             radius -> [float] Angular radius of the cone.
-            fov_min -> [float,optional,default=None] Field of view parameters in degrees.
             max_num -> [int,optional,default=None] Maximum number of stars to include in the search, sorted by brightness.
             If None, includes all stars meeting the magnitude criteria.
             max_num_per_tile -> [int,optional,default=None] Maximum number of stars per tile to include in the search.
@@ -878,55 +791,46 @@ class StarCatalogSimplified(object):
         search_area = {'cone':(center,radius)}
 
         dir_sc = self.tiles_dir
-        sc_name,_mode = self.sc_name,self._mode
-        tb_name = self._tb_name
-        catalog_indices_db = self._db_path
+        sc_name = self.sc_name
+        indices_path = self._indices_path
+        if lvl is None: lvl = self.lvl
 
         # Performs a cone search on the simplified star catalog
-        df,level,nside,ids,pixel_size,fov_min = search_cone_simplified(center,radius,dir_sc,sc_name,_mode,tb_name,catalog_indices_db,fov_min,max_num_per_tile,astrometry_corrections)
-        info = df2info(sc_name,center,df,max_num,level,nside,ids,pixel_size,search_area,fov_min)
-        return Stars(info)  
+        df,level,nside,ids,pixel_size = search_cone_simplified(center, radius, dir_sc, sc_name, indices_path, lvl, max_num_per_tile,astrometry_corrections)
+        info = df2info(sc_name,center,df,max_num,level,nside,ids,pixel_size,search_area)
+        return Stars(info)
 
-    def h5_hashes(self,k_min,k_max,mode_invariants='triangles'):
+    def hashes(self, mode_invariants='quads', n_stars=5, num_nearest_neighbors=10):
         """
-        Generate a h5-formatted star catalog geometric invariants hashed file.
-
-        Usage:
-            >>> at_hyg24_simplified.h5_hashes(1, 6)
-        Inputs:
-            k_min -> [int] Minimum HEALPix hierarchy level.
-            k_max -> [int] Maximum HEALPix hierarchy level.
-            mode_invariants -> [str, optional, default='triangles'] Mode of geometric invariants to use, e.g., 'triangles', 'quads'.
-        Outputs:
-            hashed_h5 -> Path to the h5-formatted hashed file.
-        """
-        hashed_h5 = h5_hashes(self._db_path, self._tb_name, self.tiles_dir, self.sc_name, k_min,k_max, mode_invariants)
-
-        self.hashed_h5 = hashed_h5
-        self._mode_invariants = mode_invariants
-
-    def read_h5_hashes(self,infile=None):
-        """
-        Reads an h5-formatted star catalog hashed file that contains geometric invariants of star configurations.
-        These invariants include triangle edge length ratios or quadrilateral invariants, which are used for
-        tasks like blind star pattern recognition and matching.
+        Loads a h5-formatted hashed file containing geometric invariants such as triangles or quads.
+        If not exists, generate it.
 
         Inputs:
-            infile -> [str,optional,default=None] Path to the h5 hashed file.
-        Outputs:
-            data -> [H5HashesData] An instance of H5HashesData containing the geometric invariants data from the h5 file.
+            mode_invariants -> [str] Type of invariant to load, must be one of ['triangles', 'quads'].
+            n_stars -> [int,optional,default=9] Number of stars per tile for each level.
+            num_nearest_neighbors -> [int,optional,default=15] Number of nearest neighbors to consider for each point.
+        Returns:
+            H5HashesData: Parsed hash data loaded from .h5 file.
         """
+        # Validate invariant mode
+        if mode_invariants not in ['triangles', 'quads']:
+            raise ValueError(f"Unrecognized mode invariants type: {mode_invariants}")
 
-        if infile is None:
-            if hasattr(self, 'hashed_h5'): 
-                infile = self.hashed_h5
-            else:    
-                raise Exception('No h5 hashed file provided.')
-            
-        hashed_data = read_h5_hashes(infile)
-        mode_invariants = infile.split('_')[-3]
+        # Determine hashes directory based on tiles_dir
+        hashes_dir = os.path.join(self.tiles_dir.split('starcatalogs')[0], 'starcatalogs/hashes')
 
-        return H5HashesData(self, hashed_data, mode_invariants)
+        # Construct expected file pattern
+        pattern = os.path.join(hashes_dir, f"{self.tb_name}_{mode_invariants}_*.h5")
+        matched_files = glob(pattern)
+
+        # If matching file exists, use it; otherwise generate it
+        if matched_files:
+            hash_file = matched_files[0]
+            hashed_data = read_h5_hashes(hash_file) # Read from the hash file and wrap in H5HashesData
+        else:
+            k_min, k_max = self.k_range
+            hash_file, hashed_data = h5_hashes(self._indices_path, self.tiles_dir, self.sc_name, self.tb_name, k_min, k_max, n_stars, num_nearest_neighbors, mode_invariants)
+        return H5HashesData(self, hash_file, hashed_data, mode_invariants)
 
 class H5HashesData:
     """
@@ -937,8 +841,8 @@ class H5HashesData:
         - hashed_data -> [dict] The hashed representation of the geometric invariants data.
         - mode_invariants -> [str] Mode of geometric invariants
     """
-    
-    def __init__(self, sc_simplified, hashed_data, mode_invariants):
+
+    def __init__(self, sc_simplified, hash_file, hashed_data, mode_invariants):
         """
         Initializes a new instance of the H5HashesData class.
 
@@ -946,13 +850,13 @@ class H5HashesData:
             - sc_simplified -> [StarCatalogSimplified object] The simplified star catalog data.
             - hashed_data -> [dict] The hashed representation of the geometric invariants data.
             - mode_invariants -> [str] Mode of geometric invariants
-        """ 
+        """
         self.sc_simplified = sc_simplified
+        self.hash_file = hash_file
         self.hashed_data = hashed_data
-        self.mode_invariants = mode_invariants    
+        self.mode_invariants = mode_invariants
 
     def __repr__(self):
-
         """
         String representation of the H5HashesData instance.
 
@@ -960,83 +864,8 @@ class H5HashesData:
             A formatted string that provides a summary of the H5HashesData instance.
         """
 
-        return f"<H5HashesData object: mode_invariants={self.mode_invariants}>"        
+        return f"<H5HashesData object: mode_invariants={self.mode_invariants}>"
 
-class CatalogDB(object):
-    """
-    SQLite Database of the star catalog indices.
-
-    Attributes:
-        - db_path -> [str] Path to the database file.
-    Methods:
-        - add_table: Adds a new table to the database.
-        - del_table: Deletes an existing table from the database.
-        - table_list: Lists all tables in the database.
-    """   
-
-    def __init__(self,db_path):
-        """
-        Initializes a new instance of the CatalogDB class.
-
-        Inputs:
-            db_path -> [str] Path to the database file.
-        """ 
-
-        self.db_path = db_path
-
-    def __repr__(self):
-
-        """
-        String representation of the CatalogDB instance.
-
-        Returns:
-            A formatted string that provides a summary of the CatalogDB instance.
-        """
-
-        tables = self.table_list(return_output=True)
-        return f"<CatalogDB object: tables={tables}>"
-
-    def add_table(self,table_path):
-        """
-        Adds a new table to the database from the specified table path.
-
-        Inputs:
-            table_path -> [str] Path to the CSV file containing the table data to be added.
-        """
-        generate_catalog_db(self.db_path,table_path)
-
-    def del_table(self,tb_name):
-        """
-        Deletes an existing table from the database.
-
-        Inputs:
-            tb_name -> [str] Name of the table to be deleted from the database.
-        """
-        delete_table(self.db_path,tb_name)
-
-    def table_list(self, return_output=False):
-        """
-        Lists all tables in the database.
-
-        Inputs:
-            return_output -> [bool, optional, default=False] If True, returns the list of table names instead of printing them.
-        Outputs:
-            If return_output is True, returns a list of table names. Otherwise, prints the names of all tables in the database. If no tables exist, prints a message indicating so.
-        """
-        cursor = sqlite3.connect(self.db_path).cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        tables = cursor.fetchall()
-        tb_names = [table[0] for table in tables]
-
-        if return_output:
-            return tb_names
-
-        if tables:
-            print("Tables in the database:")
-            for table in tb_names:
-                print(table)
-        else:
-            print("No tables in the database.")
 
 class Stars(object):
     """
@@ -1053,6 +882,7 @@ class Stars(object):
     Methods:
         - pixel_xy: Calculates pixel coordinates of the stars.
         - invariantfeatures: Calculates the geometric invariant features for stars.
+        - tiles_draw: Visualize the scope of the search area and the coverage of the corresponding tiles.
     """   
 
     def __init__(self,info):
@@ -1077,15 +907,13 @@ class Stars(object):
 
     def pixel_xy(self,pixel_width,theta=0):
         """
-        Calculates pixel coordinates of the stars in the collection.
+        Calculates pixel coordinates of the stars.
 
         Usage:
-            >>> stars = at_hyg24_simplified_stars.pixel_xy(0.01)
+            >>> stars = at_hyg32_simplified_stars.pixel_xy(0.01)
         Inputs:
             pixel_width -> [float] Pixel width in degrees, used to convert celestial coordinates to pixel coordinates.
             theta -> [float,optional,default=0] Rotation angle (in radians) to align the WCS frame(equivalent to ENU) with the image reference frame.
-        Outputs:
-            Stars instance with updated pixel coordinates.
         """
 
         # Convert celestial coordinates to pixel coordinates of stars
@@ -1096,14 +924,14 @@ class Stars(object):
         self.xy = np.stack([x,y]).T
         self.wcs = wcs
 
-    def invariantfeatures(self,mode_invariants='triangles'):
+    def invariantfeatures(self,num_nearest_neighbors,mode_invariants='triangles'):
         """
         Generates geometric invariant features based on the spatial configuration of stars, aiding in star pattern recognition.
 
         Inputs:
+            num_nearest_neighbors -> [int] Number of nearest neighbors to consider for each point.
             mode_invariants -> [str, optional, default='triangles'] Mode of geometric invariants to use, e.g., 'triangles' or 'quads'.
-        Outputs:
-            Stars instance with updated invariant features and KDTree structure for efficient spatial queries.
+
         Steps:
             1. Derive unique geometric invariants for every possible triangle formed by groups of three stars or quads formed by groups of four stars.
             2. Construct a KDTree structure using these unique invariants, facilitating efficient spatial queries and pattern matching.
@@ -1114,7 +942,7 @@ class Stars(object):
         """
         if not hasattr(self,'xy'): 
             raise Exception("The pixel coordinates of stars should be calculated first by `.pixel_xy(pixel_width`)")
-        inv_uniq,vrtx_uniq,inv_uniq_tree = calculate_invariantfeatures(self.xy, mode_invariants)
+        inv_uniq,vrtx_uniq,inv_uniq_tree = calculate_invariantfeatures(self.xy, num_nearest_neighbors, mode_invariants)
         self.invariants,self.asterisms,self.kdtree = inv_uniq,vrtx_uniq,inv_uniq_tree
 
     def tiles_draw(self):
@@ -1122,8 +950,39 @@ class Stars(object):
         Visualize the scope of the search area and the coverage of the corresponding tiles.
 
         Usage:
-            >>> at_hyg24_simplified.tiles_draw()
+            >>> at_hyg32_simplified.tiles_draw()
         Outputs:
-            An image illustrating the scope of the search area and the coverage of corresponding tiles.         
+            An image illustrating the scope of the search area and the coverage of corresponding tiles.
         """
-        search_draw(self.nside,self.tiles_ids,self.search_area,self.radec,self._fov_min)
+        search_draw(self.nside,self.tiles_ids,self.search_area,self.radec,self.level)
+
+    def plot_scatter(self, width, height, output_path='stars.png'):
+        """
+        Plot a scatter diagram for the given stars, with the x and y axes scaled equally.
+
+        Inputs:
+            xy -> [numpy.ndarray] An array of shape (n, 2) containing the (x, y) coordinates of n stars.
+            width -> [int] The width resolution of the output image.
+            height -> [int] The height resolution of the output image.
+            output_path -> [str,optional,default='stars.png'] Path to the output image.
+        Outputs:
+            Scatter diagram of stars
+        """
+        # Extract x and y coordinates
+        x,y = self.xy.T
+
+        # Filter points within the specified range
+        x_min, x_max = -width / 2, width / 2
+        y_min, y_max = -height / 2, height / 2
+        mask = (x >= x_min) & (x <= x_max) & (y >= y_min) & (y <= y_max)
+        x_filtered = x[mask]
+        y_filtered = y[mask]
+
+        # Plot the scatter diagram
+        plt.figure(figsize=(6, 6), dpi=300)
+        plt.scatter(x_filtered, y_filtered, s=5)
+        plt.xlim(x_min, x_max)
+        plt.ylim(y_min, y_max)
+        plt.gca().set_aspect('equal', adjustable='box')  # Set the aspect of the axes to be equal
+        plt.savefig(output_path,bbox_inches='tight')
+        plt.close()

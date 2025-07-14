@@ -1,11 +1,11 @@
 import numpy as np
 
-def df2info(sc_name, center, df, max_control_points, level, nside, pixels_ids, pixel_size, search_area, fov_min):
+def df2info(sc_name, center, df, max_control_points, level, nside, pixels_ids, pixel_size, search_area):
     """
     Extracts information from a star catalog dataFrame.
 
     Usage:
-        >>> info = df2info(sc_name, center, df, max_control_points, level, nside, pixels_ids, pixel_size, search_area, fov_min)
+        >>> info = df2info(sc_name, center, df, max_control_points, level, nside, pixels_ids, pixel_size, search_area)
     Inputs:
         sc_name -> [str] Name of the star catalog, e.g. 'gaiadr3'.
         center -> [tuple] The central coordinates of the search area in form of (Ra, Dec), where Ra is Right Ascension and Dec is Declination, both in degrees.
@@ -16,7 +16,6 @@ def df2info(sc_name, center, df, max_control_points, level, nside, pixels_ids, p
         pixels_ids -> [array-like] The HEALPix pixel IDs covering the search area.
         pixel_size -> [float] Approximate size of each pixel in degrees.
         search_area -> [dict] The area of the sky being searched. For cone search, it denotes the center and search radius; for box search, it denotes the rectangular range.
-        fov_min -> [float] Field of view parameters in degrees from which the HEALPix parameters are determined.
     Outputs:
         info -> [dict] A dictionary containing the metadata and star data(Ra,Dec,Mag) extracted from the star catalog data frame.
     """
@@ -49,8 +48,7 @@ def df2info(sc_name, center, df, max_control_points, level, nside, pixels_ids, p
         'nside': nside,
         'tiles_ids': pixels_ids,
         'tile_size': '{:.2f} deg'.format(pixel_size),
-        'search_area': search_area,
-        '_fov_min': fov_min
+        'search_area': search_area
     }
 
     return info
