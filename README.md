@@ -433,6 +433,13 @@ STARQUERY supports visualization of both **conical** and **rectangular** sky reg
   
   - Enabled **parallel construction** of geometric hash files to accelerate small-scale hash generation.
 
+- **1.1.6 — Apr 29, 2025**
+  
+  - Remove astropy.time from `astrometry_corrections` to speed up the calculations.
+  
+  - This may be the last version.
+
+
 - **1.1.5 — Nov 18, 2024**
   
   - Fixed the problem caused by the rectangle near the celestial pole degenerating into a triangle in the spherical rectangle query.
